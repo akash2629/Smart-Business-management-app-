@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Inventory items in the shop",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "integer" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["name", "price", "stock", "ownerId"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer contact information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Sales or purchase transaction",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Due"] },
+        "type": { "type": "string", "enum": ["Invoice", "Quotation", "Purchase"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["customerId", "totalAmount", "paidAmount", "status", "type", "ownerId"]
+    },
+    "OrderItem": {
+      "title": "OrderItem",
+      "description": "A line item within an order",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "price": { "type": "number" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["productId", "quantity", "price", "ownerId"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Payment record for a customer's due",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["customerId", "orderId", "amount", "ownerId"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Main product collection"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Main customer collection"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Main order collection"
+    },
+    "/orders/{orderId}/items/{itemId}": {
+      "schema": "OrderItem",
+      "description": "Sub-collection for order items"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Main payment collection"
+    }
+  }
+}

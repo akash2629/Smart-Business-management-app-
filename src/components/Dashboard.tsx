@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -20,24 +21,34 @@ import {
   Cell
 } from 'recharts';
 import { DashboardData } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, cn } from '../lib/utils';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs
+} from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
 
 function StatCard({ title, value, icon: Icon, color, trend }: { title: string, value: string | number, icon: any, color: string, trend?: string }) {
   return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="premium-card p-8 group">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-          <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{title}</p>
+            <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{value}</h3>
+          </div>
           {trend && (
-            <p className="text-xs font-medium text-green-600 mt-2 flex items-center gap-1">
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold">
               <TrendingUp size={12} />
               {trend}
-            </p>
+            </div>
           )}
         </div>
-        <div className={`p-3 rounded-xl ${color}`}>
-          <Icon size={24} className="text-white" />
+        <div className={cn("p-4 rounded-2xl text-white shadow-xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6", color)}>
+          <Icon size={24} />
         </div>
       </div>
     </div>
@@ -45,92 +56,151 @@ function StatCard({ title, value, icon: Icon, color, trend }: { title: string, v
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/dashboard')
-      .then(res => res.json())
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const ordersQ = query(collection(db, 'orders'), where('ownerId', '==', user.uid));
+      const customersQ = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
+      const productsQ = query(collection(db, 'products'), where('ownerId', '==', user.uid));
+
+      const [ordersSnap, customersSnap, productsSnap] = await Promise.all([
+        getDocs(ordersQ),
+        getDocs(customersQ),
+        getDocs(productsQ)
+      ]);
+
+      const orders = ordersSnap.docs.map(doc => doc.data());
+      
+      const sales = orders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const purchase = orders.filter(o => o.type === 'Purchase').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const totalPaid = orders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+      const totalDue = orders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+
+      setData({
+        sales,
+        purchase,
+        customers: customersSnap.size,
+        products: productsSnap.size,
+        paid: totalPaid,
+        due: totalDue
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading || !data) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin"></div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Computing Analytics...</p>
       </div>
     );
   }
 
   const chartData = [
-    { name: 'Sales', value: data.sales, color: '#3b82f6' },
+    { name: 'Sales', value: data.sales, color: '#0f172a' },
     { name: 'Purchase', value: data.purchase, color: '#f59e0b' },
     { name: 'Paid', value: data.paid, color: '#10b981' },
-    { name: 'Due', value: data.due, color: '#ef4444' },
+    { name: 'Due', value: data.due, color: '#f43f5e' },
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
-      </div>
+    <div className="space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
+            <div className="w-4 h-[2px] bg-slate-200"></div>
+            Market Overview
+          </div>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Command Center</h1>
+          <p className="text-slate-500 font-medium">Analytics and operational intelligence for your business.</p>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         <StatCard 
-          title="Total Sales" 
+          title="Total Capital Sales" 
           value={formatCurrency(data.sales)} 
           icon={TrendingUp} 
-          color="bg-blue-500"
-          trend="+12.5% from last month"
+          color="bg-slate-900"
+          trend="+12.5% vs Last Period"
         />
         <StatCard 
-          title="Total Purchase" 
+          title="Inventory Investment" 
           value={formatCurrency(data.purchase)} 
           icon={TrendingDown} 
           color="bg-amber-500"
         />
         <StatCard 
-          title="Total Customers" 
+          title="Customer Network" 
           value={data.customers} 
           icon={Users} 
-          color="bg-purple-500"
+          color="bg-slate-800"
         />
         <StatCard 
-          title="Total Products" 
+          title="Catalog Stocked" 
           value={data.products} 
           icon={Package} 
-          color="bg-indigo-500"
+          color="bg-slate-700"
         />
         <StatCard 
-          title="Total Paid" 
+          title="Revenue Captured" 
           value={formatCurrency(data.paid)} 
           icon={Wallet} 
-          color="bg-emerald-500"
+          color="bg-emerald-600"
         />
         <StatCard 
-          title="Total Due" 
+          title="Outstanding Credit" 
           value={formatCurrency(data.due)} 
           icon={Clock} 
           color="bg-rose-500"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Financial Overview</h3>
-          <div className="h-80">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="lg:col-span-3 premium-card p-8 lg:p-10">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 mb-1">Performance Matrix</h3>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Financial distribution analysis</p>
+            </div>
+          </div>
+          <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dx={-10} />
-                <Tooltip 
-                  cursor={{ fill: '#f9fafb' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="8 8" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} 
+                  dy={15}
                 />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} 
+                  dx={-15}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc', radius: 12 }}
+                  contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.1)', padding: '16px' }}
+                />
+                <Bar dataKey="value" radius={[12, 12, 12, 12]} barSize={50}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -140,33 +210,39 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <button className="flex flex-col items-center justify-center p-6 rounded-xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all group">
-              <div className="p-3 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors mb-3">
+        <div className="lg:col-span-2 premium-card p-8 lg:p-10 flex flex-col">
+          <div className="mb-10">
+            <h3 className="text-xl font-bold text-slate-900 mb-1">Operations</h3>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Continuous workflow access</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 flex-1">
+            <Link to="/orders" className="flex items-center gap-5 p-5 rounded-3xl border border-slate-50 bg-slate-50/50 hover:bg-slate-900 hover:text-white transition-all duration-500 group overflow-hidden relative">
+              <div className="p-4 rounded-2xl bg-white text-slate-900 shadow-sm group-hover:scale-110 transition-transform duration-500 relative z-10">
                 <ShoppingCart size={24} />
               </div>
-              <span className="text-sm font-semibold text-gray-700">New Sale</span>
-            </button>
-            <button className="flex flex-col items-center justify-center p-6 rounded-xl border border-gray-100 hover:bg-purple-50 hover:border-purple-200 transition-all group">
-              <div className="p-3 rounded-full bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors mb-3">
+              <div className="relative z-10">
+                <span className="text-sm font-bold block">Initialize Order</span>
+                <span className="text-[10px] font-medium text-slate-400 group-hover:text-white/60 transition-colors">Generate new invoice or quote</span>
+              </div>
+            </Link>
+            <Link to="/customers" className="flex items-center gap-5 p-5 rounded-3xl border border-slate-50 bg-slate-50/50 hover:bg-slate-900 hover:text-white transition-all duration-500 group overflow-hidden relative">
+              <div className="p-4 rounded-2xl bg-white text-slate-900 shadow-sm group-hover:scale-110 transition-transform duration-500 relative z-10">
                 <Users size={24} />
               </div>
-              <span className="text-sm font-semibold text-gray-700">Add Customer</span>
-            </button>
-            <button className="flex flex-col items-center justify-center p-6 rounded-xl border border-gray-100 hover:bg-emerald-50 hover:border-emerald-200 transition-all group">
-              <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors mb-3">
+              <div className="relative z-10">
+                <span className="text-sm font-bold block">Register Client</span>
+                <span className="text-[10px] font-medium text-slate-400 group-hover:text-white/60 transition-colors">Expand your customer database</span>
+              </div>
+            </Link>
+            <Link to="/products" className="flex items-center gap-5 p-5 rounded-3xl border border-slate-50 bg-slate-50/50 hover:bg-slate-900 hover:text-white transition-all duration-500 group overflow-hidden relative">
+              <div className="p-4 rounded-2xl bg-white text-slate-900 shadow-sm group-hover:scale-110 transition-transform duration-500 relative z-10">
                 <Package size={24} />
               </div>
-              <span className="text-sm font-semibold text-gray-700">Add Product</span>
-            </button>
-            <button className="flex flex-col items-center justify-center p-6 rounded-xl border border-gray-100 hover:bg-rose-50 hover:border-rose-200 transition-all group">
-              <div className="p-3 rounded-full bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors mb-3">
-                <Download size={24} />
+              <div className="relative z-10">
+                <span className="text-sm font-bold block">Asset Archive</span>
+                <span className="text-[10px] font-medium text-slate-400 group-hover:text-white/60 transition-colors">Update inventory and pricing</span>
               </div>
-              <span className="text-sm font-semibold text-gray-700">Export Reports</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

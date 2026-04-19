@@ -1,47 +1,104 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Trash2, ShoppingCart, User, Calendar, DollarSign, FileText, X, Printer, Download, Package } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, ShoppingCart, User, Calendar, FileText, X, Printer, Download, Package, Phone, MapPin, Edit2, AlertCircle } from 'lucide-react';
+import { BdtSign } from './Icons';
 import { toast } from 'sonner';
 import { Order, Customer, Product, OrderItem } from '../types';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
+import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  addDoc, 
+  deleteDoc, 
+  doc, 
+  writeBatch,
+  serverTimestamp,
+  orderBy
+} from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
 
 export default function OrderList() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   
-  // New Order State
-  const [newOrder, setNewOrder] = useState<{
-    customer_id: number;
+  // New/Editing Order State
+  const [orderForm, setOrderForm] = useState<{
+    customerId: string;
     type: 'Invoice' | 'Quotation' | 'Purchase';
-    paid_amount: number;
-    items: { product_id: number, quantity: number, price: number }[];
+    paidAmount: number;
+    items: { productId: string, quantity: number, price: number }[];
   }>({
-    customer_id: 0,
+    customerId: '',
     type: 'Invoice',
-    paid_amount: 0,
+    paidAmount: 0,
     items: []
   });
 
+  const resetOrderForm = () => {
+    setOrderForm({
+      customerId: '',
+      type: 'Invoice',
+      paidAmount: 0,
+      items: []
+    });
+    setEditingOrderId(null);
+  };
+
+  // New Customer State
+  const [newCustomer, setNewCustomer] = useState<Customer>({
+    name: '',
+    phone: '',
+    address: ''
+  });
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   const fetchData = async () => {
+    if (!user) return;
+    setLoading(true);
     try {
-      const [ordersRes, customersRes, productsRes] = await Promise.all([
-        fetch('/api/orders'),
-        fetch('/api/customers'),
-        fetch('/api/products')
+      const ordersQ = query(collection(db, 'orders'), where('ownerId', '==', user.uid), orderBy('createdAt', 'desc'));
+      const customersQ = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
+      const productsQ = query(collection(db, 'products'), where('ownerId', '==', user.uid));
+
+      const [ordersSnap, customersSnap, productsSnap] = await Promise.all([
+        getDocs(ordersQ),
+        getDocs(customersQ),
+        getDocs(productsQ)
       ]);
-      setOrders(await ordersRes.json());
-      setCustomers(await customersRes.json());
-      setProducts(await productsRes.json());
+
+      const ordersData = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      setOrders(ordersData.map(o => ({
+        ...o,
+        customerName: o.customerName,
+        customerId: o.customerId,
+        totalAmount: o.totalAmount,
+        paidAmount: o.paidAmount,
+        createdAt: o.createdAt?.toDate?.()?.toISOString() || o.createdAt
+      })));
+
+      setCustomers(customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[]);
+      setProducts(productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[]);
     } catch (error) {
+      console.error(error);
       toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
@@ -49,73 +106,167 @@ export default function OrderList() {
   };
 
   const calculateTotal = () => {
-    return newOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return orderForm.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newOrder.customer_id === 0) return toast.error('Please select a customer');
-    if (newOrder.items.length === 0) return toast.error('Please add at least one product');
+    if (!user) return;
+    if (!orderForm.customerId) return toast.error('Please select a customer');
+    if (orderForm.items.length === 0) return toast.error('Please add at least one product');
 
-    const total_amount = calculateTotal();
-    const status = newOrder.paid_amount >= total_amount ? 'Paid' : 'Due';
+    const totalAmount = calculateTotal();
+    const status = orderForm.paidAmount >= totalAmount ? 'Paid' : 'Due';
+    const customer = customers.find(c => c.id === orderForm.customerId);
 
     try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newOrder, total_amount, status }),
-      });
-      if (res.ok) {
-        toast.success('Order created successfully');
-        setIsModalOpen(false);
-        setNewOrder({ customer_id: 0, type: 'Invoice', paid_amount: 0, items: [] });
-        fetchData();
+      const batch = writeBatch(db);
+      let orderRef;
+      
+      if (editingOrderId) {
+        orderRef = doc(db, 'orders', editingOrderId);
+        // For updates, we delete existing items first and re-add them 
+        // to simplify the "sync" of items list
+        const itemsSnap = await getDocs(collection(orderRef, 'items'));
+        itemsSnap.docs.forEach(d => batch.delete(d.ref));
+      } else {
+        orderRef = doc(collection(db, 'orders'));
       }
+      
+      const orderData = {
+        customerId: orderForm.customerId,
+        customerName: customer?.name || 'Unknown',
+        totalAmount,
+        paidAmount: orderForm.paidAmount,
+        status,
+        type: orderForm.type,
+        ownerId: user.uid,
+        updatedAt: serverTimestamp(),
+        ...(editingOrderId ? {} : { createdAt: serverTimestamp() })
+      };
+
+      batch.set(orderRef, orderData, { merge: true });
+
+      orderForm.items.forEach(item => {
+        const itemRef = doc(collection(orderRef, 'items'));
+        batch.set(itemRef, {
+          ...item,
+          ownerId: user.uid
+        });
+      });
+
+      await batch.commit();
+      
+      toast.success(editingOrderId ? 'Order updated successfully' : 'Order created successfully');
+      setIsModalOpen(false);
+      resetOrderForm();
+      fetchData();
     } catch (error) {
-      toast.error('Failed to create order');
+      console.error(error);
+      toast.error(editingOrderId ? 'Failed to update order' : 'Failed to create order');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this order?')) return;
+  const handleEdit = async (order: Order) => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Order deleted');
-        fetchData();
-      }
+      // Fetch items for this order
+      const itemsSnap = await getDocs(collection(db, 'orders', order.id!, 'items'));
+      const items = itemsSnap.docs.map(doc => doc.data() as any);
+      
+      setEditingOrderId(order.id!);
+      setOrderForm({
+        customerId: order.customerId!,
+        type: order.type as any,
+        paidAmount: order.paidAmount,
+        items: items.map(i => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          price: i.price
+        }))
+      });
+      setIsModalOpen(true);
+    } catch (error) {
+      toast.error('Failed to load order details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setOrderToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!orderToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'orders', orderToDelete));
+      toast.success('Order deleted');
+      setIsDeleteModalOpen(false);
+      setOrderToDelete(null);
+      fetchData();
     } catch (error) {
       toast.error('Delete failed');
     }
   };
 
   const addItem = () => {
-    setNewOrder({
-      ...newOrder,
-      items: [...newOrder.items, { product_id: 0, quantity: 1, price: 0 }]
+    setOrderForm({
+      ...orderForm,
+      items: [...orderForm.items, { productId: '', quantity: 1, price: 0 }]
     });
   };
 
   const updateItem = (index: number, field: string, value: any) => {
-    const updatedItems = [...newOrder.items];
+    const updatedItems = [...orderForm.items];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
-    if (field === 'product_id') {
-      const product = products.find(p => p.id === parseInt(value));
+    if (field === 'productId') {
+      const product = products.find(p => p.id === value);
       if (product) {
         updatedItems[index].price = product.price;
       }
     }
     
-    setNewOrder({ ...newOrder, items: updatedItems });
+    setOrderForm({ ...orderForm, items: updatedItems });
   };
 
   const removeItem = (index: number) => {
-    setNewOrder({
-      ...newOrder,
-      items: newOrder.items.filter((_, i) => i !== index)
+    setOrderForm({
+      ...orderForm,
+      items: orderForm.items.filter((_, i) => i !== index)
     });
+  };
+
+  const handleCustomerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!newCustomer.name) return toast.error('Name is required');
+
+    try {
+      const docRef = await addDoc(collection(db, 'customers'), {
+        ...newCustomer,
+        ownerId: user.uid
+      });
+      
+      toast.success('Customer added successfully');
+      
+      // Refresh customers list
+      const customersQ = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
+      const customersSnap = await getDocs(customersQ);
+      const updatedCustomers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[];
+      setCustomers(updatedCustomers);
+      
+      // Select the newly added customer
+      setOrderForm({ ...orderForm, customerId: docRef.id });
+      
+      // Reset and close
+      setIsCustomerModalOpen(false);
+      setNewCustomer({ name: '', phone: '', address: '' });
+    } catch (error) {
+      toast.error('Failed to add customer');
+    }
   };
 
   const exportToPDF = (order: Order) => {
@@ -125,53 +276,85 @@ export default function OrderList() {
     
     doc.setFontSize(10);
     doc.text(`Order ID: #${order.id}`, 20, 40);
-    doc.text(`Date: ${formatDate(order.created_at!)}`, 20, 45);
-    doc.text(`Customer: ${order.customer_name}`, 20, 50);
+    doc.text(`Date: ${formatDate(order.createdAt!)}`, 20, 45);
+    doc.text(`Customer: ${order.customerName}`, 20, 50);
     doc.text(`Type: ${order.type}`, 20, 55);
     
     // This is a simplified version, ideally we'd fetch order items for the specific order
-    doc.autoTable({
+    autoTable(doc, {
       startY: 65,
       head: [['Product', 'Price', 'Qty', 'Total']],
       body: [
-        ['Total Order Amount', '', '', formatCurrency(order.total_amount)],
-        ['Paid Amount', '', '', formatCurrency(order.paid_amount)],
-        ['Balance Due', '', '', formatCurrency(order.total_amount - order.paid_amount)],
+        ['Total Order Amount', '', '', formatCurrency(order.totalAmount)],
+        ['Paid Amount', '', '', formatCurrency(order.paidAmount)],
+        ['Balance Due', '', '', formatCurrency(order.totalAmount - order.paidAmount)],
       ],
     });
     
     doc.save(`Invoice_${order.id}.pdf`);
   };
 
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(orders.map(o => ({
+      'Order ID': o.id,
+      'Customer': o.customerName,
+      'Date': formatDate(o.createdAt!),
+      'Total Amount': o.totalAmount,
+      'Paid Amount': o.paidAmount,
+      'Status': o.status,
+      'Type': o.type
+    })));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+    XLSX.writeFile(workbook, 'Order_History.xlsx');
+    toast.success('Exporting transaction history...');
+  };
+
   const filteredOrders = orders.filter(o => 
-    o.customer_name?.toLowerCase().includes(search.toLowerCase()) || 
+    o.customerName?.toLowerCase().includes(search.toLowerCase()) || 
     o.id?.toString().includes(search)
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
-          <p className="text-gray-500">Track invoices, quotations, and purchase records.</p>
+    <div className="space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
+            <div className="w-4 h-[2px] bg-slate-200"></div>
+            Transaction Ledger
+          </div>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Order Management</h1>
+          <p className="text-slate-500 font-medium tracking-tight">Track financial invoices, strategic quotations, and procurement records.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={20} />
-          <span>New Order</span>
-        </button>
-      </div>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={exportToExcel}
+            className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+          >
+            <Download size={20} />
+            <span className="hidden sm:inline">Export Excel</span>
+          </button>
+          <button 
+            onClick={() => {
+              resetOrderForm();
+              setIsModalOpen(true);
+            }}
+            className="premium-button-primary"
+          >
+            <Plus size={20} />
+            <span>Initialize Order</span>
+          </button>
+        </div>
+      </header>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+      <div className="premium-card">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/30">
           <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Search by ID or customer..." 
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              placeholder="Locate transaction record..." 
+              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -182,62 +365,72 @@ export default function OrderList() {
           {/* Desktop Table */}
           <table className="w-full text-left hidden md:table">
             <thead>
-              <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                <th className="px-6 py-4">Order ID</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+              <tr className="bg-slate-50/50">
+                <th className="data-grid-header">Order ID</th>
+                <th className="data-grid-header">Customer Identity</th>
+                <th className="data-grid-header">Registry Date</th>
+                <th className="data-grid-header">Valuation</th>
+                <th className="data-grid-header">Fulfillment Status</th>
+                <th className="data-grid-header text-right">Operational Logic</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400">Loading orders...</td>
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Syncing...</td>
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400">No orders found.</td>
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-400 font-medium">Clear Ledger. No records present.</td>
                 </tr>
               ) : filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-6 py-4 font-medium text-blue-600">#{order.id}</td>
-                  <td className="px-6 py-4">
+                <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group text-sm">
+                  <td className="px-6 py-5 font-mono font-bold text-slate-400">#{order.id?.slice(-6)}</td>
+                  <td className="px-6 py-5">
                     <div className="flex items-center gap-2">
-                      <User size={14} className="text-gray-400" />
-                      <span className="text-gray-900">{order.customer_name}</span>
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs">
+                        {order.customerName?.charAt(0)}
+                      </div>
+                      <span className="font-bold text-slate-900 tracking-tight">{order.customerName}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">
+                  <td className="px-6 py-5 text-slate-500 font-medium">
                     <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-400" />
-                      {formatDate(order.created_at!)}
+                      <Calendar size={14} className="text-slate-300" />
+                      {formatDate(order.createdAt!)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-bold text-gray-900">{formatCurrency(order.total_amount)}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-5 font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</td>
+                  <td className="px-6 py-5">
                     <span className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
-                      order.status === 'Paid' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                      "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border",
+                      order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                     )}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-5 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => exportToPDF(order)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white rounded-xl transition-all shadow-sm border border-transparent hover:border-slate-100"
                         title="Print Invoice"
                       >
-                        <Printer size={18} />
+                        <Printer size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleEdit(order)}
+                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white rounded-xl transition-all shadow-sm border border-transparent hover:border-slate-100"
+                        title="Edit Record"
+                      >
+                        <Edit2 size={16} />
                       </button>
                       <button 
                         onClick={() => handleDelete(order.id!)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                        title="Delete Record"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -247,48 +440,56 @@ export default function OrderList() {
           </table>
 
           {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-gray-100">
+          <div className="md:hidden divide-y divide-slate-50">
             {loading ? (
-              <div className="p-6 text-center text-gray-400">Loading orders...</div>
+              <div className="p-10 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Syncing...</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-6 text-center text-gray-400">No orders found.</div>
+              <div className="p-10 text-center text-slate-400 font-medium">Null Registry.</div>
             ) : filteredOrders.map((order) => (
-              <div key={order.id} className="p-4 space-y-3">
+              <div key={order.id} className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-blue-600 font-bold text-sm">#{order.id}</span>
+                  <span className="font-mono text-[10px] font-black text-slate-300 uppercase tracking-widest">Ref: #{order.id?.slice(-6)}</span>
                   <span className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                    order.status === 'Paid' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                    "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border",
+                    order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                   )}>
                     {order.status}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <User size={14} className="text-gray-400" />
-                    <span className="font-bold text-gray-900">{order.customer_name}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-lg border border-slate-200">
+                      {order.customerName?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 tracking-tight">{order.customerName}</p>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{formatDate(order.createdAt!).split(',')[0]}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button 
                       onClick={() => exportToPDF(order)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-xl"
                     >
-                      <Printer size={18} />
+                      <Printer size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleEdit(order)}
+                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-xl"
+                    >
+                      <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => handleDelete(order.id!)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-600 bg-slate-50 rounded-xl"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <Calendar size={12} />
-                    {formatDate(order.created_at!).split(',')[0]}
-                  </div>
-                  <span className="font-black text-gray-900">{formatCurrency(order.total_amount)}</span>
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Aggregated Valuation</p>
+                  <span className="text-xl font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</span>
                 </div>
               </div>
             ))}
@@ -296,52 +497,148 @@ export default function OrderList() {
         </div>
       </div>
 
-      {/* New Order Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 text-white rounded-lg">
-                  <ShoppingCart size={24} />
+      {/* New Customer Modal (Nested) */}
+      {isCustomerModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsCustomerModalOpen(false)} />
+          <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200">
+            <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
+                  <User size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Create New Order</h3>
-                  <p className="text-xs text-gray-500">Fill in the details to generate a new transaction.</p>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">Quick Onboarding</h3>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Direct Entity Entry</p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <button onClick={() => setIsCustomerModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCustomerSubmit} className="p-10 space-y-6">
+              <div>
+                <label className="detail-label">Entity Name</label>
+                <div className="relative">
+                  <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input
+                    required
+                    type="text"
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
+                    placeholder="Enter full name"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="detail-label">Communication Channel</label>
+                <div className="relative">
+                  <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input
+                    type="text"
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
+                    placeholder="Enter phone number"
+                    value={newCustomer.phone}
+                    onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="detail-label">Geospatial Locality</label>
+                <div className="relative">
+                  <MapPin size={18} className="absolute left-4 top-5 text-slate-300" />
+                  <textarea
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 min-h-[80px]"
+                    placeholder="Enter customer address"
+                    value={newCustomer.address}
+                    onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setIsCustomerModalOpen(false)}
+                  className="flex-1 px-4 py-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
+                >
+                  Void
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                >
+                  Commit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Order Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
+          <div className="bg-white rounded-[3rem] w-full max-w-5xl shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
+                  <ShoppingCart size={28} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
+                    {editingOrderId ? 'Update Transaction' : 'Initialize Transaction'}
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">
+                    {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : 'Direct Audit Fulfillment Registry'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
                 <X size={24} />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Select Customer</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="detail-label">Select Entity</label>
+                    <button 
+                      type="button"
+                      onClick={() => setIsCustomerModalOpen(true)}
+                      className="text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
+                    >
+                      <Plus size={10} />
+                      New Registry
+                    </button>
+                  </div>
                   <select 
                     required
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
-                    value={newOrder.customer_id}
-                    onChange={(e) => setNewOrder({...newOrder, customer_id: parseInt(e.target.value)})}
+                    className="w-full px-5 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all cursor-pointer"
+                    value={orderForm.customerId}
+                    onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
                   >
-                    <option value={0}>Choose a customer...</option>
+                    <option value="">Choose an entity record...</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Order Type</label>
-                  <div className="flex gap-2">
+                  <label className="detail-label">Instrument Typology</label>
+                  <div className="flex gap-3">
                     {['Invoice', 'Quotation', 'Purchase'].map((type) => (
                       <button
                         key={type}
                         type="button"
-                        onClick={() => setNewOrder({...newOrder, type: type as any})}
+                        onClick={() => setOrderForm({...orderForm, type: type as any})}
                         className={cn(
-                          "flex-1 py-2 rounded-xl text-sm font-semibold border transition-all",
-                          newOrder.type === type 
-                            ? "bg-blue-600 border-blue-600 text-white shadow-md" 
-                            : "bg-white border-gray-200 text-gray-600 hover:border-blue-300"
+                          "flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                          orderForm.type === type 
+                            ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-100" 
+                            : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
                         )}
                       >
                         {type}
@@ -351,62 +648,64 @@ export default function OrderList() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <Package size={20} className="text-blue-600" />
-                    Products & Items
+              <div className="space-y-6">
+                <div className="flex items-center justify-between bg-slate-50/50 p-6 rounded-[2rem] border border-slate-50">
+                  <h4 className="text-lg font-bold text-slate-900 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-slate-100 text-slate-400 shadow-sm">
+                      <Package size={20} />
+                    </div>
+                    Asset Registry
                   </h4>
                   <button 
                     type="button"
                     onClick={addItem}
-                    className="text-sm font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                    className="premium-button-secondary py-2 px-4 text-xs"
                   >
                     <Plus size={16} />
-                    Add Item
+                    <span>Append Line Item</span>
                   </button>
                 </div>
 
-                <div className="space-y-3">
-                  {newOrder.items.map((item, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div className="space-y-4">
+                  {orderForm.items.map((item, index) => (
+                    <div key={index} className="premium-card p-6 md:p-8 bg-white hover:bg-slate-50/20 transition-all border-slate-50">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                         <div className="md:col-span-5">
-                          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Product</label>
+                          <label className="detail-label">Asset</label>
                           <select
                             required
-                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white text-sm"
-                            value={item.product_id}
-                            onChange={(e) => updateItem(index, 'product_id', e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-sm"
+                            value={item.productId}
+                            onChange={(e) => updateItem(index, 'productId', e.target.value)}
                           >
-                            <option value={0}>Select product...</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}
+                            <option value="">Select registry...</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name} (Vol: {p.stock})</option>)}
                           </select>
                         </div>
-                        <div className="grid grid-cols-3 md:col-span-6 gap-3">
+                        <div className="grid grid-cols-3 md:col-span-6 gap-4">
                           <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Price</label>
+                            <label className="detail-label">Valuation</label>
                             <input
                               required
                               type="number"
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm"
-                              value={item.price}
-                              onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value))}
+                              className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-sm tabular-nums"
+                              value={item.price || 0}
+                              onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Qty</label>
+                            <label className="detail-label">Vol</label>
                             <input
                               required
                               type="number"
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm"
-                              value={item.quantity}
-                              onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value))}
+                              className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-sm tabular-nums"
+                              value={item.quantity || 0}
+                              onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Total</label>
-                            <div className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-900 truncate">
+                            <label className="detail-label">Aggregate</label>
+                            <div className="px-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-black tabular-nums shadow-lg shadow-slate-100 truncate">
                               {formatCurrency(item.price * item.quantity)}
                             </div>
                           </div>
@@ -415,7 +714,7 @@ export default function OrderList() {
                           <button 
                             type="button"
                             onClick={() => removeItem(index)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -423,60 +722,96 @@ export default function OrderList() {
                       </div>
                     </div>
                   ))}
-                  {newOrder.items.length === 0 && (
-                    <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
-                      <Package size={48} className="mx-auto mb-3 opacity-20" />
-                      <p>No products added to this order yet.</p>
+                  {orderForm.items.length === 0 && (
+                    <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/30">
+                      <Package size={48} className="mx-auto mb-4 text-slate-200" />
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Null Assets Selected</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="bg-gray-900 text-white p-6 md:p-8 rounded-2xl shadow-xl">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 items-center">
+              <div className="bg-slate-900 text-white p-10 md:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 items-center">
                   <div className="text-center sm:text-left">
-                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">Grand Total</p>
-                    <h2 className="text-3xl md:text-4xl font-black">{formatCurrency(calculateTotal())}</h2>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Total Combined Valuation</p>
+                    <h2 className="text-5xl font-black tracking-tighter tabular-nums">{formatCurrency(calculateTotal())}</h2>
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">Amount Paid</label>
+                    <label className="block text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Liquidity Inflow (Paid)</label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                      <BdtSign size={24} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" />
                       <input
                         required
                         type="number"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none text-xl font-bold"
-                        value={newOrder.paid_amount}
-                        onChange={(e) => setNewOrder({...newOrder, paid_amount: parseFloat(e.target.value)})}
+                        className="w-full pl-14 pr-6 py-5 rounded-3xl bg-white/5 border border-white/10 focus:ring-4 focus:ring-white/10 focus:border-white outline-none text-3xl font-black tabular-nums tracking-tighter transition-all"
+                        value={orderForm.paidAmount || 0}
+                        onChange={(e) => setOrderForm({...orderForm, paidAmount: parseFloat(e.target.value) || 0})}
                       />
                     </div>
                   </div>
                   <div className="text-center sm:text-right sm:col-span-2 lg:col-span-1">
-                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">Balance Due</p>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Residual Exposure (Due)</p>
                     <h2 className={cn(
-                      "text-2xl md:text-3xl font-black",
-                      calculateTotal() - newOrder.paid_amount > 0 ? "text-rose-400" : "text-emerald-400"
+                      "text-3xl md:text-4xl font-black tabular-nums tracking-tight",
+                      calculateTotal() - orderForm.paidAmount > 0 ? "text-rose-400" : "text-emerald-400"
                     )}>
-                      {formatCurrency(Math.max(0, calculateTotal() - newOrder.paid_amount))}
+                      {formatCurrency(Math.max(0, calculateTotal() - orderForm.paidAmount))}
                     </h2>
                   </div>
                 </div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-all duration-1000" />
               </div>
             </form>
 
-            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-4 shrink-0">
+            <div className="p-10 border-t border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row gap-4 shrink-0">
               <button 
                 type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-6 py-3 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-white transition-all shadow-sm"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetOrderForm();
+                }}
+                className="flex-1 px-8 py-5 rounded-[2rem] border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all"
               >
-                Cancel
+                Void Audit
               </button>
               <button 
                 onClick={handleSubmit}
-                className="flex-[2] px-6 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                className="flex-[2] px-8 py-5 rounded-[2rem] bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
               >
-                Complete & Save Order
+                {editingOrderId ? 'Synchronize Record Changes' : 'Commit & Synchronize Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsDeleteModalOpen(false)} />
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200">
+            <div className="p-8 text-center space-y-4">
+              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Irreversible Deletion</h3>
+              <p className="text-sm text-slate-500 font-medium">
+                Are you certain you wish to purge this transaction record from the permanent ledger?
+              </p>
+            </div>
+            <div className="p-6 bg-slate-50/50 flex gap-3">
+              <button 
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 px-4 py-3 rounded-xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all"
+              >
+                Abort
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-3 rounded-xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
+              >
+                Purge Record
               </button>
             </div>
           </div>

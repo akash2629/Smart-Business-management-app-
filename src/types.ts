@@ -1,35 +1,49 @@
 export interface Product {
-  id?: number;
+  id?: string;
   name: string;
   code: string;
   price: number;
   stock: number;
+  ownerId?: string;
 }
 
 export interface Customer {
-  id?: number;
+  id?: string;
   name: string;
   phone: string;
   address: string;
+  ownerId?: string;
 }
 
 export interface Order {
-  id?: number;
-  customer_id: number;
-  customer_name?: string;
-  total_amount: number;
-  paid_amount: number;
+  id?: string;
+  customerId: string;
+  customerName?: string;
+  totalAmount: number;
+  paidAmount: number;
   status: 'Paid' | 'Due';
-  type: 'Invoice' | 'Quotation' | 'Purchase';
-  created_at?: string;
+  type: 'Invoice' | 'Quotation' | 'Purchase' | 'Opening Balance';
+  createdAt?: string;
+  ownerId?: string;
 }
 
 export interface OrderItem {
-  id?: number;
-  order_id?: number;
-  product_id: number;
+  id?: string;
+  orderId?: string;
+  productId: string;
   quantity: number;
   price: number;
+  ownerId?: string;
+}
+
+export interface Payment {
+  id?: string;
+  customerId: string;
+  orderId: string;
+  amount: number;
+  method: string;
+  paymentDate: string;
+  ownerId?: string;
 }
 
 export interface DashboardData {
@@ -42,7 +56,7 @@ export interface DashboardData {
 }
 
 export interface DueRecord {
-  id: number;
+  id: string;
   name: string;
   total_amount: number;
   total_paid: number;

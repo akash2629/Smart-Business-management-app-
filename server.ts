@@ -53,10 +53,15 @@ db.exec(`
     customer_id INTEGER,
     order_id INTEGER,
     amount REAL NOT NULL,
+    method TEXT DEFAULT 'Cash',
+    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id),
     FOREIGN KEY (order_id) REFERENCES orders(id)
   );
+
+  -- Add columns if they don't exist (for existing databases)
+  PRAGMA table_info(payments);
 `);
 
 async function startServer() {
@@ -186,7 +191,7 @@ async function startServer() {
   });
 
   app.post('/api/payments', (req, res) => {
-    const { customer_id, amount } = req.body;
+    const { customer_id, amount, method, date } = req.body;
     
     const transaction = db.transaction(() => {
       // Find orders with dues for this customer
@@ -207,7 +212,7 @@ async function startServer() {
         db.prepare('UPDATE orders SET paid_amount = paid_amount + ?, status = CASE WHEN paid_amount + ? >= total_amount THEN "Paid" ELSE "Due" END WHERE id = ?')
           .run(paymentForThisOrder, paymentForThisOrder, order.id);
         
-        db.prepare('INSERT INTO payments (customer_id, order_id, amount) VALUES (?, ?, ?)').run(customer_id, order.id, paymentForThisOrder);
+        db.prepare('INSERT INTO payments (customer_id, order_id, amount, method, payment_date) VALUES (?, ?, ?, ?, ?)').run(customer_id, order.id, paymentForThisOrder, method || 'Cash', date || new Date().toISOString());
         
         remainingPayment -= paymentForThisOrder;
       }

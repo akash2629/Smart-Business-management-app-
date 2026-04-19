@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(data) {
+      return isSignedIn() && data.ownerId == request.auth.uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidProduct(p) {
+      return p.name is string && p.name.size() > 0 && p.name.size() <= 200 &&
+             p.price is number && p.price >= 0 &&
+             p.stock is int && p.stock >= 0 &&
+             p.ownerId == request.auth.uid;
+    }
+
+    function isValidCustomer(c) {
+      return c.name is string && c.name.size() > 0 && c.name.size() <= 200 &&
+             c.ownerId == request.auth.uid;
+    }
+
+    function isValidOrder(o) {
+      return o.customerId is string && 
+             o.totalAmount is number && 
+             o.paidAmount is number && 
+             o.status in ['Paid', 'Due'] &&
+             o.type in ['Invoice', 'Quotation', 'Purchase'] &&
+             o.ownerId == request.auth.uid;
+    }
+
+    function isValidOrderItem(i) {
+      return i.productId is string &&
+             i.quantity is int && i.quantity > 0 &&
+             i.price is number && i.price >= 0 &&
+             i.ownerId == request.auth.uid;
+    }
+
+    function isValidPayment(p) {
+      return p.customerId is string &&
+             p.orderId is string &&
+             p.amount is number && p.amount > 0 &&
+             p.ownerId == request.auth.uid;
+    }
+
+    // --- Rules ---
+
+    match /products/{productId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isOwner(existing()) && isValidProduct(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'price', 'stock'])
+      );
+      allow delete: if isOwner(existing());
+    }
+
+    match /customers/{customerId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming());
+      allow update: if isOwner(existing()) && isValidCustomer(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'address'])
+      );
+      allow delete: if isOwner(existing());
+    }
+
+    match /orders/{orderId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isOwner(existing()) && isValidOrder(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['totalAmount', 'paidAmount', 'status', 'type', 'customerName'])
+      );
+      allow delete: if isOwner(existing());
+
+      match /items/{itemId} {
+        allow read: if isOwner(existing());
+        allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(itemId) && isValidOrderItem(incoming());
+        allow update, delete: if isOwner(existing());
+      }
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isOwner(existing());
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(paymentId) && isValidPayment(incoming());
+      allow update: if isOwner(existing()) && isValidPayment(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'method', 'paymentDate'])
+      );
+      allow delete: if isOwner(existing());
+    }
+  }
+}
