@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, User, Phone, MapPin, X, Download } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Phone, MapPin, X, Download, History, Eye, Calendar, ShoppingCart, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { Customer } from '../types';
+import { Customer, Order } from '../types';
+import { formatCurrency, formatDate, cn } from '../lib/utils';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -11,10 +12,12 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  doc 
+  doc,
+  orderBy
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function CustomerList() {
   const { user } = useAuth();
@@ -23,7 +26,10 @@ export default function CustomerList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [selectedCustomerHistory, setSelectedCustomerHistory] = useState<Customer | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [formData, setFormData] = useState<Customer>({ name: '', phone: '', address: '' });
 
   useEffect(() => {
@@ -114,6 +120,39 @@ export default function CustomerList() {
     c.name.toLowerCase().includes(search.toLowerCase()) || 
     c.phone.includes(search)
   );
+
+  const fetchPurchaseHistory = async (customer: Customer) => {
+    if (!user || !customer.id) return;
+    setLoading(true);
+    setSelectedCustomerHistory(customer);
+    try {
+      const q = query(
+        collection(db, 'orders'), 
+        where('ownerId', '==', user.uid), 
+        where('customerId', '==', customer.id),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const orders = await Promise.all(querySnapshot.docs.map(async (orderDoc) => {
+        const orderData = orderDoc.data();
+        const itemsSnap = await getDocs(collection(db, 'orders', orderDoc.id, 'items'));
+        const items = itemsSnap.docs.map(d => d.data());
+        return {
+          id: orderDoc.id,
+          ...orderData,
+          items,
+          createdAt: orderData.createdAt?.toDate?.()?.toISOString() || orderData.createdAt
+        };
+      }));
+      setCustomerOrders(orders);
+      setIsHistoryModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to fetch purchase history');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-12">
@@ -207,6 +246,13 @@ export default function CustomerList() {
                   <td className="px-6 py-5 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button 
+                        onClick={() => fetchPurchaseHistory(customer)}
+                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-emerald-100"
+                        title={t('history')}
+                      >
+                        <History size={16} />
+                      </button>
+                      <button 
                         onClick={() => {
                           setEditingCustomer(customer);
                           setFormData(customer);
@@ -249,6 +295,12 @@ export default function CustomerList() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button 
+                      onClick={() => fetchPurchaseHistory(customer)}
+                      className="w-10 h-10 flex items-center justify-center text-emerald-500 bg-emerald-50 rounded-xl"
+                    >
+                      <History size={16} />
+                    </button>
+                    <button 
                       onClick={() => {
                         setEditingCustomer(customer);
                         setFormData(customer);
@@ -279,10 +331,22 @@ export default function CustomerList() {
       </div>
 
       {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
-          <div className="bg-white rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col">
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+              onClick={() => setIsModalOpen(false)} 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col"
+            >
             <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
               <div className="flex items-center gap-5">
                 <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
@@ -354,9 +418,117 @@ export default function CustomerList() {
                 {editingCustomer ? t('save') : t('registerProduct')}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
+
+      {/* History Modal */}
+      <AnimatePresence>
+        {isHistoryModalOpen && selectedCustomerHistory && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsHistoryModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[3rem] w-full max-w-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col"
+            >
+              <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
+                    <History size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t('history')}</h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{selectedCustomerHistory.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-10 space-y-12 overflow-y-auto">
+                {customerOrders.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <ShoppingCart size={48} className="mx-auto mb-4 text-slate-100" />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('noData')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {customerOrders.map((order) => (
+                      <div key={order.id} className="premium-card p-8 space-y-6 hover:border-slate-200 transition-all">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-50 pb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-100">
+                              <Eye size={18} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Ref: #{order.id.slice(-6)}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Calendar size={12} className="text-slate-300" />
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(order.createdAt)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className={cn(
+                            "px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border w-fit",
+                            order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                          )}>
+                            {order.status}
+                          </span>
+                        </div>
+
+                        <div className="space-y-4">
+                          <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <ArrowRight size={12} /> {t('items')}
+                          </h4>
+                          <div className="space-y-2">
+                            {order.items?.map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-50">
+                                <span className="text-xs font-bold text-slate-700">{item.name}</span>
+                                <div className="flex items-center gap-4">
+                                  <span className="text-[10px] font-black text-slate-300 tabular-nums">{item.quantity} × {formatCurrency(item.price)}</span>
+                                  <span className="text-xs font-black text-slate-900 tabular-nums">{formatCurrency(item.quantity * item.price)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-50 bg-slate-50/10 p-4 rounded-xl">
+                          <div>
+                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('total')}</p>
+                            <p className="text-xl font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('paid')}</p>
+                            <p className="text-xl font-black text-emerald-600 tabular-nums">{formatCurrency(order.paidAmount)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-10 border-t border-slate-50 bg-slate-50/30 shrink-0">
+                <button 
+                  onClick={() => setIsHistoryModalOpen(false)}
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
+                >
+                  {t('close')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

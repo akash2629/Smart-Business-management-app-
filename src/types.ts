@@ -53,6 +53,10 @@ export interface DashboardData {
   products: number;
   paid: number;
   due: number;
+  todaySales: number;
+  todayDue: number;
+  monthlySales: number;
+  monthlyDue: number;
 }
 
 export interface DueRecord {

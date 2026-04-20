@@ -178,22 +178,28 @@ export default function DueManagement() {
           .filter((v, i, a) => a.indexOf(v) === i) // Unique dates
           .join(', ');
 
-        // Extract chronological settlement dates
-        const paidDates = allPayments
+        // Extract chronological settlement dates and amounts
+        const customerPayments = allPayments
           .filter(p => p.customerId === record.id)
+          .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+
+        const paidDates = customerPayments
           .map(p => p.paymentDate)
-          .filter((v, i, a) => a.indexOf(v) === i) // Unique dates
+          .join(', ');
+
+        const paidAmounts = customerPayments
+          .map(p => p.amount)
           .join(', ');
 
         return {
-          'Client Nomenclature': record.name,
-          'Mobile Registry': customer?.phone || 'N/A',
-          'Geospatial Locality': customer?.address || 'N/A',
-          'Asset Acquisition Dates': buyDates || 'No purchases logged',
-          'Settlement Timeline (Paid Dates)': paidDates || 'No collections logged',
-          'Aggregate Portfolio Value': record.total_amount,
-          'Recovered Liquidity (Paid)': record.total_paid,
-          'Residual Exposure (Due)': record.remaining_balance
+          'Customer Name': record.name,
+          'Mobile Number': customer?.phone || 'N/A',
+          'Address': customer?.address || 'N/A',
+          'Product Buy Date': buyDates || 'No purchases logged',
+          'Due Paid Date': paidDates || 'No collections logged',
+          'Paid Money': paidAmounts || '0',
+          'Total Paid': record.total_paid,
+          'Total Due': record.remaining_balance
         };
       });
 
@@ -204,11 +210,11 @@ export default function DueManagement() {
         { wch: 25 }, // Name
         { wch: 15 }, // Mobile
         { wch: 30 }, // Address
-        { wch: 40 }, // Buy Dates
-        { wch: 40 }, // Paid Dates
-        { wch: 15 }, // Total
-        { wch: 15 }, // Paid
-        { wch: 15 }, // Due
+        { wch: 30 }, // Buy Date
+        { wch: 30 }, // Paid Date
+        { wch: 20 }, // Paid Money
+        { wch: 15 }, // Total Paid
+        { wch: 15 }, // Total Due
       ];
       worksheet['!cols'] = wscols;
 

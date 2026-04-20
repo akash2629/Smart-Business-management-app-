@@ -89,13 +89,42 @@ export default function Dashboard() {
       const totalPaid = orders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
       const totalDue = orders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
 
+      // Today's metrics
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayOrders = orders.filter(o => {
+        const orderDate = new Date(o.createdAt?.toDate?.() || o.createdAt);
+        orderDate.setHours(0, 0, 0, 0);
+        return orderDate.getTime() === today.getTime();
+      });
+
+      const todaySales = todayOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const todayDue = todayOrders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+
+      // Monthly metrics
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+
+      const monthlyOrders = orders.filter(o => {
+        const orderDate = new Date(o.createdAt?.toDate?.() || o.createdAt);
+        return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+      });
+
+      const monthlySales = monthlyOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      const monthlyDue = monthlyOrders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+
       setData({
         sales,
         purchase,
         customers: customersSnap.size,
         products: productsSnap.size,
         paid: totalPaid,
-        due: totalDue
+        due: totalDue,
+        todaySales,
+        todayDue,
+        monthlySales,
+        monthlyDue
       });
     } catch (error) {
       console.error(error);
@@ -135,11 +164,42 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         <StatCard 
+          title={t('todaySales')}
+          value={formatCurrency(data.todaySales)} 
+          icon={TrendingUp} 
+          color="bg-emerald-500"
+        />
+        <StatCard 
+          title={t('monthlySales')}
+          value={formatCurrency(data.monthlySales)} 
+          icon={TrendingUp} 
+          color="bg-slate-900"
+          trend="Current Period"
+        />
+        <StatCard 
           title={t('totalRevenue')}
           value={formatCurrency(data.sales)} 
           icon={TrendingUp} 
           color="bg-slate-900"
-          trend="+12.5% vs Last Period"
+          trend="Lifetime"
+        />
+        <StatCard 
+          title={t('todayDue')}
+          value={formatCurrency(data.todayDue)} 
+          icon={Clock} 
+          color="bg-rose-400"
+        />
+        <StatCard 
+          title={t('monthlyDue')}
+          value={formatCurrency(data.monthlyDue)} 
+          icon={Clock} 
+          color="bg-rose-500"
+        />
+        <StatCard 
+          title={t('outstandingCredit')}
+          value={formatCurrency(data.due)} 
+          icon={Clock} 
+          color="bg-rose-600"
         />
         <StatCard 
           title={t('inventoryAssets')}
@@ -158,18 +218,6 @@ export default function Dashboard() {
           value={data.products} 
           icon={Package} 
           color="bg-slate-700"
-        />
-        <StatCard 
-          title={t('capturedRevenue')}
-          value={formatCurrency(data.paid)} 
-          icon={Wallet} 
-          color="bg-emerald-600"
-        />
-        <StatCard 
-          title={t('outstandingCredit')}
-          value={formatCurrency(data.due)} 
-          icon={Clock} 
-          color="bg-rose-500"
         />
       </div>
 

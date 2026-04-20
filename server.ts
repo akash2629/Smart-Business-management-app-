@@ -4,9 +4,24 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 import cors from 'cors';
+import { Resend } from 'resend';
+import admin from 'firebase-admin';
+import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Firebase Admin
+const firebaseConfig = JSON.parse(readFileSync('./firebase-applet-config.json', 'utf8'));
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: firebaseConfig.projectId,
+  });
+}
+
+const firestore = admin.firestore();
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const db = new Database('shop.db');
 
@@ -220,6 +235,133 @@ async function startServer() {
 
     transaction();
     res.json({ success: true });
+  });
+
+  // Data Reset Endpoints
+  app.post('/api/request-reset', async (req, res) => {
+    const { email, uid } = req.body;
+    if (!email || !uid) {
+      return res.status(400).json({ error: 'Email and UID are required' });
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    try {
+      // Store in a temporary collection
+      await firestore.collection('reset_codes').doc(uid).set({
+        code,
+        expiry,
+        email
+      });
+
+      if (!resend) {
+        console.log('------------------------------------------');
+        console.log('DATA RESET VERIFICATION CODE:', code);
+        console.log('FOR USER:', email);
+        console.log('------------------------------------------');
+        return res.json({ 
+          success: true, 
+          message: 'Email service not configured (RESEND_API_KEY missing). Since this is a development preview, the code has been logged to the server console for you to use.' 
+        });
+      }
+
+      // Send email
+      const { data, error } = await resend.emails.send({
+        from: 'SmartShop <onboarding@resend.dev>',
+        to: [email],
+        subject: 'Reset Your Shop Data',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; rounded: 12px;">
+            <h1 style="color: #0f172a; font-size: 24px;">Data Reset Verification</h1>
+            <p style="color: #64748b;">You requested to reset all your data on SmartShop. This action is irreversible.</p>
+            <p style="color: #64748b;">Use the following 6-digit code to confirm the reset:</p>
+            <div style="background: #f8fafc; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #0f172a; border-radius: 8px; margin: 20px 0;">
+              ${code}
+            </div>
+            <p style="color: #94a3b8; font-size: 12px;">This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+          </div>
+        `
+      });
+
+      if (error) {
+        console.error('Email error:', error);
+        return res.status(500).json({ error: 'Failed to send verification email' });
+      }
+
+      res.json({ success: true, message: 'Verification code sent to your email' });
+    } catch (error) {
+      console.error('Reset request error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/confirm-reset', async (req, res) => {
+    const { uid, code } = req.body;
+    if (!uid || !code) {
+      return res.status(400).json({ error: 'UID and code are required' });
+    }
+
+    try {
+      const resetDoc = await firestore.collection('reset_codes').doc(uid).get();
+      if (!resetDoc.exists) {
+        return res.status(400).json({ error: 'No reset session found' });
+      }
+
+      const data = resetDoc.data();
+      if (data?.code !== code) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+
+      if (Date.now() > data?.expiry) {
+        return res.status(400).json({ error: 'Verification code expired' });
+      }
+
+      // Delete user data from all collections
+      const collections = ['orders', 'customers', 'products', 'payments'];
+      
+      const batchSize = 500;
+      for (const collName of collections) {
+        const collectionRef = firestore.collection(collName);
+        const query = collectionRef.where('ownerId', '==', uid).limit(batchSize);
+
+        let snapshot = await query.get();
+        while (!snapshot.empty) {
+          const batch = firestore.batch();
+          snapshot.docs.forEach((doc) => {
+            // Also delete subcollections if any
+            // For orders, we should delete the 'items' subcollection
+            if (collName === 'orders') {
+               // We can't easily batch delete subcollections in a single pass without knowing all doc IDs
+               // but for a small shop management app, we can iterate or use a cloud function (not available here)
+               // For now, we'll just delete the documents. 
+               // Ideally we should delete subcollections too.
+            }
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+          snapshot = await query.get();
+        }
+      }
+
+      // Special handling for order items subcollections
+      const ordersSnapshot = await firestore.collection('orders').where('ownerId', '==', uid).get();
+      for (const orderDoc of ordersSnapshot.docs) {
+        const itemsSnapshot = await orderDoc.ref.collection('items').get();
+        const batch = firestore.batch();
+        itemsSnapshot.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      // Clean up the reset code
+      await firestore.collection('reset_codes').doc(uid).delete();
+
+      res.json({ success: true, message: 'All shop data has been successfully reset' });
+    } catch (error) {
+      console.error('Reset confirm error:', error);
+      res.status(500).json({ error: 'Internal server error during data reset' });
+    }
   });
 
   // Vite middleware for development

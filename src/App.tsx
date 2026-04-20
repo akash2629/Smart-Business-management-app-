@@ -17,7 +17,8 @@ import {
   LogOut,
   User as UserIcon,
   ChevronRight,
-  Clock
+  Clock,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,6 +28,7 @@ import CustomerList from './components/CustomerList';
 import ProductList from './components/ProductList';
 import DueManagement from './components/DueManagement';
 import TransactionHistory from './components/TransactionHistory';
+import Settings from './components/Settings';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
@@ -114,6 +116,7 @@ function Navigation() {
     { to: "/products", icon: Package, label: t('products') },
     { to: "/dues", icon: CreditCard, label: t('dues') },
     { to: "/history", icon: Clock, label: t('dailyRecord') },
+    { to: "/settings", icon: SettingsIcon, label: t('settings') },
   ];
 
   return (
@@ -273,6 +276,7 @@ function AppContent() {
               <Route path="/products" element={<PageTransition><ProductList /></PageTransition>} />
               <Route path="/dues" element={<PageTransition><DueManagement /></PageTransition>} />
               <Route path="/history" element={<PageTransition><TransactionHistory /></PageTransition>} />
+              <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>

@@ -18,6 +18,7 @@ const translations = {
     dues: 'Dues',
     dailyRecord: 'Daily Record',
     signOut: 'Sign Out',
+    settings: 'Settings',
     enterpriseAccess: 'Enterprise Access',
 
     // Dashboard
@@ -36,6 +37,10 @@ const translations = {
     registerProduct: 'Register Product',
     customerDirectory: 'Customer Directory',
     financialReports: 'Financial Reports',
+    todaySales: 'Today\'s Sale',
+    todayDue: 'Today\'s Due',
+    monthlySales: 'Monthly Sale',
+    monthlyDue: 'Monthly Due',
 
     // Global
     search: 'Search...',
@@ -133,6 +138,7 @@ const translations = {
     dues: 'বকেয়া',
     dailyRecord: 'দৈনিক রেকর্ড',
     signOut: 'লগ আউট',
+    settings: 'সেটিংস',
     enterpriseAccess: 'এন্টারপ্রাইজ এক্সেস',
 
     // Dashboard
@@ -151,6 +157,10 @@ const translations = {
     registerProduct: 'পণ্য নিবন্ধন করুন',
     customerDirectory: 'কাস্টমার ডিরেক্টরি',
     financialReports: 'আর্থিক রিপোর্ট',
+    todaySales: 'আজকের বিক্রয়',
+    todayDue: 'আজকের বকেয়া',
+    monthlySales: 'মাসিক বিক্রয়',
+    monthlyDue: 'মাসিক বকেয়া',
 
     // Global
     search: 'খুঁজুন...',
