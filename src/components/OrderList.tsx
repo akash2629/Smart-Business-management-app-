@@ -21,9 +21,11 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function OrderList() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -321,10 +323,10 @@ export default function OrderList() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
-            Transaction Ledger
+            {t('orderRegistry')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Order Management</h1>
-          <p className="text-slate-500 font-medium tracking-tight">Track financial invoices, strategic quotations, and procurement records.</p>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('orders')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight">{t('manageSales')}</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
@@ -332,7 +334,7 @@ export default function OrderList() {
             className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
           >
             <Download size={20} />
-            <span className="hidden sm:inline">Export Excel</span>
+            <span className="hidden sm:inline">{t('exportExcel')}</span>
           </button>
           <button 
             onClick={() => {
@@ -342,7 +344,7 @@ export default function OrderList() {
             className="premium-button-primary"
           >
             <Plus size={20} />
-            <span>Initialize Order</span>
+            <span>{t('newOrder')}</span>
           </button>
         </div>
       </header>
@@ -353,7 +355,7 @@ export default function OrderList() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Locate transaction record..." 
+              placeholder={t('search')} 
               className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -366,12 +368,12 @@ export default function OrderList() {
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="data-grid-header">Order ID</th>
-                <th className="data-grid-header">Customer Identity</th>
-                <th className="data-grid-header">Registry Date</th>
-                <th className="data-grid-header">Valuation</th>
-                <th className="data-grid-header">Fulfillment Status</th>
-                <th className="data-grid-header text-right">Operational Logic</th>
+                <th className="data-grid-header">{t('orderId')}</th>
+                <th className="data-grid-header">{t('customer')}</th>
+                <th className="data-grid-header">{t('date')}</th>
+                <th className="data-grid-header">{t('total')}</th>
+                <th className="data-grid-header">{t('status')}</th>
+                <th className="data-grid-header text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -508,8 +510,8 @@ export default function OrderList() {
                   <User size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">Quick Onboarding</h3>
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Direct Entity Entry</p>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{t('addCustomer')}</h3>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">{t('manualEntry')}</p>
                 </div>
               </div>
               <button onClick={() => setIsCustomerModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-xl transition-colors">
@@ -519,39 +521,39 @@ export default function OrderList() {
             
             <form onSubmit={handleCustomerSubmit} className="p-10 space-y-6">
               <div>
-                <label className="detail-label">Entity Name</label>
+                <label className="detail-label">{t('customer')}</label>
                 <div className="relative">
                   <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input
                     required
                     type="text"
                     className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
-                    placeholder="Enter full name"
+                    placeholder={t('search')}
                     value={newCustomer.name}
                     onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
                   />
                 </div>
               </div>
               <div>
-                <label className="detail-label">Communication Channel</label>
+                <label className="detail-label">{t('mobile')}</label>
                 <div className="relative">
                   <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input
                     type="text"
                     className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
-                    placeholder="Enter phone number"
+                    placeholder={t('mobile')}
                     value={newCustomer.phone}
                     onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
                   />
                 </div>
               </div>
               <div>
-                <label className="detail-label">Geospatial Locality</label>
+                <label className="detail-label">{t('address')}</label>
                 <div className="relative">
                   <MapPin size={18} className="absolute left-4 top-5 text-slate-300" />
                   <textarea
                     className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 min-h-[80px]"
-                    placeholder="Enter customer address"
+                    placeholder={t('address')}
                     value={newCustomer.address}
                     onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
                   />
@@ -564,13 +566,13 @@ export default function OrderList() {
                   onClick={() => setIsCustomerModalOpen(false)}
                   className="flex-1 px-4 py-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
                 >
-                  Void
+                  {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   className="flex-1 px-4 py-3 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
                 >
-                  Commit
+                  {t('save')}
                 </button>
               </div>
             </form>
@@ -590,10 +592,10 @@ export default function OrderList() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    {editingOrderId ? 'Update Transaction' : 'Initialize Transaction'}
+                    {editingOrderId ? t('edit') + ' ' + t('orders') : t('newOrder')}
                   </h3>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">
-                    {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : 'Direct Audit Fulfillment Registry'}
+                    {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : t('financialReports')}
                   </p>
                 </div>
               </div>
@@ -606,14 +608,14 @@ export default function OrderList() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="detail-label">Select Entity</label>
+                    <label className="detail-label">{t('selectCustomer')}</label>
                     <button 
                       type="button"
                       onClick={() => setIsCustomerModalOpen(true)}
                       className="text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
                     >
                       <Plus size={10} />
-                      New Registry
+                      {t('addCustomer')}
                     </button>
                   </div>
                   <select 
@@ -622,12 +624,12 @@ export default function OrderList() {
                     value={orderForm.customerId}
                     onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
                   >
-                    <option value="">Choose an entity record...</option>
+                    <option value="">{t('selectCustomer')}</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="detail-label">Instrument Typology</label>
+                  <label className="detail-label">{t('paymentMethod')}</label>
                   <div className="flex gap-3">
                     {['Invoice', 'Quotation', 'Purchase'].map((type) => (
                       <button
@@ -654,7 +656,7 @@ export default function OrderList() {
                     <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-slate-100 text-slate-400 shadow-sm">
                       <Package size={20} />
                     </div>
-                    Asset Registry
+                    {t('items')}
                   </h4>
                   <button 
                     type="button"
@@ -662,7 +664,7 @@ export default function OrderList() {
                     className="premium-button-secondary py-2 px-4 text-xs"
                   >
                     <Plus size={16} />
-                    <span>Append Line Item</span>
+                    <span>{t('addItems')}</span>
                   </button>
                 </div>
 
@@ -671,20 +673,20 @@ export default function OrderList() {
                     <div key={index} className="premium-card p-6 md:p-8 bg-white hover:bg-slate-50/20 transition-all border-slate-50">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                         <div className="md:col-span-5">
-                          <label className="detail-label">Asset</label>
+                          <label className="detail-label">{t('product')}</label>
                           <select
                             required
                             className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-sm"
                             value={item.productId}
                             onChange={(e) => updateItem(index, 'productId', e.target.value)}
                           >
-                            <option value="">Select registry...</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.name} (Vol: {p.stock})</option>)}
+                            <option value="">{t('selectProduct')}</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name} ({t('stockLevel')}: {p.stock})</option>)}
                           </select>
                         </div>
                         <div className="grid grid-cols-3 md:col-span-6 gap-4">
                           <div>
-                            <label className="detail-label">Valuation</label>
+                            <label className="detail-label">{t('unitPrice')}</label>
                             <input
                               required
                               type="number"
@@ -694,7 +696,7 @@ export default function OrderList() {
                             />
                           </div>
                           <div>
-                            <label className="detail-label">Vol</label>
+                            <label className="detail-label">{t('quantity')}</label>
                             <input
                               required
                               type="number"
@@ -704,7 +706,7 @@ export default function OrderList() {
                             />
                           </div>
                           <div>
-                            <label className="detail-label">Aggregate</label>
+                            <label className="detail-label">{t('subtotal')}</label>
                             <div className="px-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-black tabular-nums shadow-lg shadow-slate-100 truncate">
                               {formatCurrency(item.price * item.quantity)}
                             </div>
@@ -734,11 +736,11 @@ export default function OrderList() {
               <div className="bg-slate-900 text-white p-10 md:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden group">
                 <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 items-center">
                   <div className="text-center sm:text-left">
-                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Total Combined Valuation</p>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{t('total')}</p>
                     <h2 className="text-5xl font-black tracking-tighter tabular-nums">{formatCurrency(calculateTotal())}</h2>
                   </div>
                   <div>
-                    <label className="block text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Liquidity Inflow (Paid)</label>
+                    <label className="block text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-3">{t('paid')}</label>
                     <div className="relative">
                       <BdtSign size={24} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" />
                       <input
@@ -751,7 +753,7 @@ export default function OrderList() {
                     </div>
                   </div>
                   <div className="text-center sm:text-right sm:col-span-2 lg:col-span-1">
-                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Residual Exposure (Due)</p>
+                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{t('due')}</p>
                     <h2 className={cn(
                       "text-3xl md:text-4xl font-black tabular-nums tracking-tight",
                       calculateTotal() - orderForm.paidAmount > 0 ? "text-rose-400" : "text-emerald-400"
@@ -773,13 +775,13 @@ export default function OrderList() {
                 }}
                 className="flex-1 px-8 py-5 rounded-[2rem] border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all"
               >
-                Void Audit
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleSubmit}
                 className="flex-[2] px-8 py-5 rounded-[2rem] bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
               >
-                {editingOrderId ? 'Synchronize Record Changes' : 'Commit & Synchronize Order'}
+                {editingOrderId ? t('save') : t('newOrder')}
               </button>
             </div>
           </div>
@@ -795,9 +797,9 @@ export default function OrderList() {
               <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <AlertCircle size={32} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Irreversible Deletion</h3>
+              <h3 className="text-xl font-bold text-slate-900">{t('confirmDelete')}</h3>
               <p className="text-sm text-slate-500 font-medium">
-                Are you certain you wish to purge this transaction record from the permanent ledger?
+                {t('confirmDelete')}
               </p>
             </div>
             <div className="p-6 bg-slate-50/50 flex gap-3">
@@ -805,13 +807,13 @@ export default function OrderList() {
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="flex-1 px-4 py-3 rounded-xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:bg-white transition-all"
               >
-                Abort
+                {t('cancel')}
               </button>
               <button 
                 onClick={confirmDelete}
                 className="flex-1 px-4 py-3 rounded-xl bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
               >
-                Purge Record
+                {t('delete')}
               </button>
             </div>
           </div>

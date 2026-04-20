@@ -23,9 +23,11 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function DueManagement() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [dues, setDues] = useState<DueRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -458,10 +460,10 @@ export default function DueManagement() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
-            Financial Accountability
+            {t('dueRegistry')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Due Management</h1>
-          <p className="text-slate-500 font-medium tracking-tight">Systematic tracking of outstanding credits and collection status.</p>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('dueManagement')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight">{t('trackOutstanding')}</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
@@ -469,38 +471,38 @@ export default function DueManagement() {
             className="premium-button-secondary border-rose-100 text-rose-700 hover:bg-rose-50"
           >
             <FileText size={20} />
-            <span className="hidden sm:inline">Export PDF</span>
+            <span className="hidden sm:inline">{t('exportPDF')}</span>
           </button>
           <button 
             onClick={() => setIsManualModalOpen(true)}
             className="premium-button-primary"
           >
             <Plus size={20} />
-            <span>Manual Entry</span>
+            <span>{t('manualEntry')}</span>
           </button>
           <button 
             onClick={exportToExcel}
             className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
           >
             <Download size={20} />
-            <span>Export Audit</span>
+            <span>{t('exportExcel')}</span>
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="premium-card p-8 group">
-          <p className="detail-label">Total Outstanding</p>
+          <p className="detail-label">{t('due')}</p>
           <h3 className="text-3xl font-bold text-rose-600 tracking-tight group-hover:scale-105 transition-transform duration-500">
             {formatCurrency(dues.reduce((sum, d) => sum + d.remaining_balance, 0))}
           </h3>
         </div>
         <div className="premium-card p-8">
-          <p className="detail-label">Debtor Network</p>
-          <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{dues.length} Clients</h3>
+          <p className="detail-label">{t('customers')}</p>
+          <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{dues.length} {t('clientNetwork')}</h3>
         </div>
         <div className="premium-card p-8 sm:col-span-2 lg:col-span-1">
-          <p className="detail-label">Average Risk Exposure</p>
+          <p className="detail-label">{t('averageRisk')}</p>
           <h3 className="text-3xl font-bold text-amber-600 tracking-tight">
             {formatCurrency(dues.length > 0 ? dues.reduce((sum, d) => sum + d.remaining_balance, 0) / dues.length : 0)}
           </h3>
@@ -513,7 +515,7 @@ export default function DueManagement() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Locate customer record..." 
+              placeholder={t('search')} 
               className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -526,12 +528,12 @@ export default function DueManagement() {
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="data-grid-header">Customer Identity</th>
-                <th className="data-grid-header">Billed Total</th>
-                <th className="data-grid-header">Principal Paid</th>
-                <th className="data-grid-header">Residual Balance</th>
-                <th className="data-grid-header">Collection Progress</th>
-                <th className="data-grid-header text-right">Operations</th>
+                <th className="data-grid-header">{t('customer')}</th>
+                <th className="data-grid-header">{t('total')}</th>
+                <th className="data-grid-header">{t('paid')}</th>
+                <th className="data-grid-header">{t('due')}</th>
+                <th className="data-grid-header">{t('status')}</th>
+                <th className="data-grid-header text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -607,7 +609,7 @@ export default function DueManagement() {
                         className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
                       >
                         <Wallet size={14} />
-                        Collect
+                        {t('paid')}
                       </button>
                     </div>
                   </td>
@@ -724,8 +726,8 @@ export default function DueManagement() {
                     <CreditCard size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Record Collection</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Audit Trail Entry — {selectedCustomer.name}</p>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t('paid')}</h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')} — {selectedCustomer.name}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
@@ -736,13 +738,13 @@ export default function DueManagement() {
                 <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200 relative overflow-hidden group">
                   <div className="relative z-10 flex justify-between items-center mb-6">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Customer Account Due</p>
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{t('due')}</p>
                       <p className="text-4xl font-black tabular-nums tracking-tighter">{formatCurrency(selectedCustomer.remaining_balance)}</p>
                     </div>
                   </div>
                   <div className="relative z-10 space-y-3">
                     <div className="flex justify-between text-[10px] font-black text-white/40 uppercase tracking-widest">
-                      <span>Historical Recovered</span>
+                      <span>{t('paid')}</span>
                       <span>{Math.round((selectedCustomer.total_paid / selectedCustomer.total_amount) * 100)}%</span>
                     </div>
                     <div className="w-full bg-white/10 h-3 rounded-full overflow-hidden border border-white/5">
@@ -757,7 +759,7 @@ export default function DueManagement() {
 
                 <div className="space-y-8">
                   <div>
-                    <label className="detail-label">Liquidity Captured</label>
+                    <label className="detail-label">{t('paid')}</label>
                     <div className="relative">
                       <BdtSign size={24} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                       <input 
@@ -770,25 +772,24 @@ export default function DueManagement() {
                         onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
                       />
                     </div>
-                    <p className="text-[11px] font-semibold text-slate-400 mt-4 px-1 italic">Enter the exact financial instrument value received from the entity.</p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="detail-label">Settlement Mode</label>
+                      <label className="detail-label">{t('paymentMethod')}</label>
                       <select 
                         className="w-full px-5 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all"
                         value={paymentMethod}
                         onChange={(e) => setPaymentMethod(e.target.value)}
                       >
-                        <option value="Cash">Fiat Currency (Cash)</option>
-                        <option value="Bank Transfer">Ledger Transfer (Bank)</option>
-                        <option value="Mobile Banking">Net Settlement (Mobile)</option>
-                        <option value="Card">Plastic/Card Instrument</option>
+                        <option value="Cash">{t('cash')}</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Mobile Banking">Mobile Banking</option>
+                        <option value="Card">Card</option>
                       </select>
                     </div>
                     <div>
-                      <label className="detail-label">Registry Date</label>
+                      <label className="detail-label">{t('date')}</label>
                       <input 
                         type="date"
                         className="w-full px-5 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all"
@@ -805,13 +806,13 @@ export default function DueManagement() {
                   onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-6 py-4 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-white transition-all"
                 >
-                  Void Audit
+                  {t('cancel')}
                 </button>
                 <button 
                   onClick={handlePayment}
                   className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
                 >
-                  Commit Ledger
+                  {t('save')}
                 </button>
               </div>
             </motion.div>
@@ -842,8 +843,8 @@ export default function DueManagement() {
                     <History size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Payment Ledger</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Audit Trail — {selectedCustomer.name}</p>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t('paymentHistory')}</h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')} — {selectedCustomer.name}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
@@ -854,10 +855,10 @@ export default function DueManagement() {
                 {/* Outstanding Orders */}
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <ArrowRight size={12} /> Outstanding Obligations
+                    <ArrowRight size={12} /> {t('due')}
                   </h4>
                   {historyOrders.length === 0 ? (
-                    <p className="text-xs font-bold text-slate-300 uppercase tracking-widest pl-5">No active debts</p>
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-widest pl-5">{t('noData')}</p>
                   ) : (
                     <div className="space-y-3">
                       {historyOrders.map((order) => (
@@ -869,7 +870,7 @@ export default function DueManagement() {
                           <div className="flex items-center gap-6">
                             <div className="text-right">
                               <p className="text-sm font-black text-rose-600 tabular-nums">{formatCurrency(order.totalAmount - order.paidAmount)}</p>
-                              <p className="text-[9px] font-black text-slate-300 uppercase">Residual</p>
+                              <p className="text-[9px] font-black text-slate-300 uppercase">{t('due')}</p>
                             </div>
                             <button 
                               onClick={() => deleteSourceOrder(order.id)}
@@ -887,11 +888,11 @@ export default function DueManagement() {
                 {/* Payment History */}
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                    <ArrowRight size={12} /> Liquidity Inflow History
+                    <ArrowRight size={12} /> {t('paid')}
                   </h4>
                   {historyPayments.length === 0 ? (
                     <div className="py-10 text-center bg-slate-50/50 rounded-[2rem] border border-slate-50">
-                      <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">No historical transactions</p>
+                      <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">{t('noData')}</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -914,7 +915,7 @@ export default function DueManagement() {
                              </div>
                           </div>
                           <div className="sm:text-right px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Transaction Ref</p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{t('orderId')}</p>
                              <p className="text-[11px] font-mono font-bold text-slate-900 truncate max-w-[120px]">{payment.id}</p>
                           </div>
                         </div>
@@ -928,7 +929,7 @@ export default function DueManagement() {
                   onClick={() => setIsHistoryModalOpen(false)}
                   className="w-full px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
                 >
-                  Close Audit
+                  {t('cancel')}
                 </button>
               </div>
             </motion.div>
@@ -959,8 +960,8 @@ export default function DueManagement() {
                     <Search size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Financial Data Preview</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Virtual Spreadsheet View — {selectedCustomer.name}</p>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t('financialDataPreview')}</h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')} — {selectedCustomer.name}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsPreviewModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
@@ -973,33 +974,33 @@ export default function DueManagement() {
                   {/* Spreadsheet Header Row */}
                   <div className="flex bg-slate-100 border-b border-slate-200">
                     <div className="w-12 py-3 px-4 border-r border-slate-200 bg-slate-200/50 text-[10px] font-black text-slate-400 text-center">#</div>
-                    <div className="w-64 py-3 px-6 border-r border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest italic font-serif">Registry Category</div>
-                    <div className="flex-1 py-3 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest italic font-serif text-center">Data Record Details</div>
+                    <div className="w-64 py-3 px-6 border-r border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest italic font-serif">{t('category')}</div>
+                    <div className="flex-1 py-3 px-6 text-[10px] font-black text-slate-500 uppercase tracking-widest italic font-serif text-center">{t('dataRecordDetails')}</div>
                   </div>
 
                   {/* Customer Core Identity Row */}
                   <div className="flex border-b border-slate-50 group hover:bg-slate-50/50">
                     <div className="w-12 py-4 px-4 border-r border-slate-200 text-slate-300 text-center font-bold">01</div>
-                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">Client Nomenclature</div>
+                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('customer')}</div>
                     <div className="flex-1 py-4 px-6 font-medium text-slate-600 uppercase tracking-wider">{selectedCustomer.name}</div>
                   </div>
 
                   <div className="flex border-b border-slate-50 group hover:bg-slate-50/50">
                     <div className="w-12 py-4 px-4 border-r border-slate-200 text-slate-300 text-center font-bold">02</div>
-                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">Mobile Registry</div>
+                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('mobile')}</div>
                     <div className="flex-1 py-4 px-6 font-medium text-slate-600 tracking-tight">{customers.find(c => c.id === selectedCustomer.id)?.phone || 'N/A'}</div>
                   </div>
 
                   <div className="flex border-b border-slate-50 group hover:bg-slate-50/50">
                     <div className="w-12 py-4 px-4 border-r border-slate-200 text-slate-300 text-center font-bold">03</div>
-                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">Geospatial Locality</div>
+                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('address')}</div>
                     <div className="flex-1 py-4 px-6 font-medium text-slate-600 tracking-tight">{customers.find(c => c.id === selectedCustomer.id)?.address || 'N/A'}</div>
                   </div>
 
                   {/* Asset Acquisition Block */}
                   <div className="flex border-b border-slate-50 group hover:bg-slate-50/50">
                     <div className="w-12 py-4 px-4 border-r border-slate-200 text-slate-300 text-center font-bold">04</div>
-                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">Asset Acquisition Timeline</div>
+                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('orderRegistry')}</div>
                     <div className="flex-1 py-4 px-6">
                       <div className="flex flex-wrap gap-2">
                         {historyOrders.map((o: any) => (
@@ -1007,7 +1008,7 @@ export default function DueManagement() {
                             {o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'Legacy'}
                           </span>
                         ))}
-                        {historyOrders.length === 0 && <span className="text-slate-300 italic">No record found</span>}
+                        {historyOrders.length === 0 && <span className="text-slate-300 italic">{t('noData')}</span>}
                       </div>
                     </div>
                   </div>
@@ -1015,7 +1016,7 @@ export default function DueManagement() {
                   {/* Settlement Block */}
                   <div className="flex border-b border-slate-50 group hover:bg-slate-50/50">
                     <div className="w-12 py-4 px-4 border-r border-slate-200 text-slate-300 text-center font-bold">05</div>
-                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">Detailed Settlement Logs</div>
+                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('paymentHistory')}</div>
                     <div className="flex-1 p-0">
                       <div className="divide-y divide-slate-100">
                         {historyPayments.map((p: any) => (
@@ -1028,7 +1029,7 @@ export default function DueManagement() {
                           </div>
                         ))}
                         {historyPayments.length === 0 && (
-                          <div className="px-6 py-4 text-slate-300 italic text-xs">No historical liquidity captured</div>
+                          <div className="px-6 py-4 text-slate-300 italic text-xs">{t('noData')}</div>
                         )}
                       </div>
                     </div>
@@ -1037,14 +1038,14 @@ export default function DueManagement() {
                   {/* Financial Metrics Block */}
                   <div className="flex border-b border-slate-200 group hover:bg-slate-50/50">
                     <div className="w-12 py-4 px-4 border-r border-slate-200 text-slate-300 text-center font-bold">06</div>
-                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">Aggregate Value Matrix</div>
+                    <div className="w-64 py-4 px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('financialOverview')}</div>
                     <div className="flex-1 flex divide-x divide-slate-100">
                       <div className="flex-1 p-4 text-center">
-                        <p className="text-[9px] font-black text-slate-300 tracking-[0.2em] mb-1">Total Outstanding Due</p>
+                        <p className="text-[9px] font-black text-slate-300 tracking-[0.2em] mb-1">{t('due')}</p>
                         <p className="text-xl font-black text-rose-600">{formatCurrency(selectedCustomer.remaining_balance)}</p>
                       </div>
                       <div className="flex-1 p-4 text-center">
-                        <p className="text-[9px] font-black text-slate-300 tracking-[0.2em] mb-1">Total Aggregate Paid</p>
+                        <p className="text-[9px] font-black text-slate-300 tracking-[0.2em] mb-1">{t('paid')}</p>
                         <p className="text-xl font-black text-emerald-600 font-serif italic">{formatCurrency(selectedCustomer.total_paid)}</p>
                       </div>
                     </div>
@@ -1057,7 +1058,7 @@ export default function DueManagement() {
                   onClick={() => setIsPreviewModalOpen(false)}
                   className="px-8 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
                 >
-                  Close Data Preview
+                  {t('cancel')}
                 </button>
               </div>
             </motion.div>
@@ -1088,8 +1089,8 @@ export default function DueManagement() {
                     <Wallet size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Manual Due Entry</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Direct Financial Registry</p>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t('manualEntry')}</h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsManualModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
@@ -1099,19 +1100,19 @@ export default function DueManagement() {
               <form onSubmit={handleManualDue} className="p-10 space-y-8 overflow-y-auto">
                 <div className="space-y-6">
                   <div>
-                    <label className="detail-label">Select Entity</label>
+                    <label className="detail-label">{t('selectCustomer')}</label>
                     <select 
                       required
                       className="w-full px-5 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all"
                       value={manualDue.customerId}
                       onChange={(e) => setManualDue({...manualDue, customerId: e.target.value})}
                     >
-                      <option value="">Select customer...</option>
+                      <option value="">{t('selectCustomer')}</option>
                       {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="detail-label">Valuation (Amount)</label>
+                    <label className="detail-label">{t('total')}</label>
                     <div className="relative">
                       <BdtSign size={24} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                       <input 
@@ -1124,10 +1125,10 @@ export default function DueManagement() {
                     </div>
                   </div>
                   <div>
-                    <label className="detail-label">Strategic Note</label>
+                    <label className="detail-label">{t('note')}</label>
                     <textarea 
                       className="w-full px-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 min-h-[100px] transition-all"
-                      placeholder="Context for this financial entry..."
+                      placeholder={t('note')}
                       value={manualDue.note}
                       onChange={(e) => setManualDue({...manualDue, note: e.target.value})}
                     />
@@ -1140,13 +1141,13 @@ export default function DueManagement() {
                   onClick={() => setIsManualModalOpen(false)}
                   className="flex-1 px-6 py-4 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-white transition-all"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button 
                   onClick={handleManualDue}
                   className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
                 >
-                  Commit Registry
+                  {t('save')}
                 </button>
               </div>
             </motion.div>

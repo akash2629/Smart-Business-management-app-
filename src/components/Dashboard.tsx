@@ -30,6 +30,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 function StatCard({ title, value, icon: Icon, color, trend }: { title: string, value: string | number, icon: any, color: string, trend?: string }) {
   return (
@@ -57,6 +58,7 @@ function StatCard({ title, value, icon: Icon, color, trend }: { title: string, v
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -106,16 +108,16 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <div className="w-12 h-12 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin"></div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Computing Analytics...</p>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">{t('loading')}</p>
       </div>
     );
   }
 
   const chartData = [
-    { name: 'Sales', value: data.sales, color: '#0f172a' },
-    { name: 'Purchase', value: data.purchase, color: '#f59e0b' },
-    { name: 'Paid', value: data.paid, color: '#10b981' },
-    { name: 'Due', value: data.due, color: '#f43f5e' },
+    { name: t('orders'), value: data.sales, color: '#0f172a' },
+    { name: t('inventoryAssets'), value: data.purchase, color: '#f59e0b' },
+    { name: t('capturedRevenue'), value: data.paid, color: '#10b981' },
+    { name: t('outstandingCredit'), value: data.due, color: '#f43f5e' },
   ];
 
   return (
@@ -126,45 +128,45 @@ export default function Dashboard() {
             <div className="w-4 h-[2px] bg-slate-200"></div>
             Market Overview
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Command Center</h1>
-          <p className="text-slate-500 font-medium">Analytics and operational intelligence for your business.</p>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('executiveOverview')}</h1>
+          <p className="text-slate-500 font-medium">{t('realTimePerformance')}</p>
         </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         <StatCard 
-          title="Total Capital Sales" 
+          title={t('totalRevenue')}
           value={formatCurrency(data.sales)} 
           icon={TrendingUp} 
           color="bg-slate-900"
           trend="+12.5% vs Last Period"
         />
         <StatCard 
-          title="Inventory Investment" 
+          title={t('inventoryAssets')}
           value={formatCurrency(data.purchase)} 
           icon={TrendingDown} 
           color="bg-amber-500"
         />
         <StatCard 
-          title="Customer Network" 
+          title={t('totalCustomers')}
           value={data.customers} 
           icon={Users} 
           color="bg-slate-800"
         />
         <StatCard 
-          title="Catalog Stocked" 
+          title={t('products')}
           value={data.products} 
           icon={Package} 
           color="bg-slate-700"
         />
         <StatCard 
-          title="Revenue Captured" 
+          title={t('capturedRevenue')}
           value={formatCurrency(data.paid)} 
           icon={Wallet} 
           color="bg-emerald-600"
         />
         <StatCard 
-          title="Outstanding Credit" 
+          title={t('outstandingCredit')}
           value={formatCurrency(data.due)} 
           icon={Clock} 
           color="bg-rose-500"
@@ -175,8 +177,8 @@ export default function Dashboard() {
         <div className="lg:col-span-3 premium-card p-8 lg:p-10">
           <div className="flex items-center justify-between mb-10">
             <div>
-              <h3 className="text-xl font-bold text-slate-900 mb-1">Performance Matrix</h3>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Financial distribution analysis</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-1">{t('salesPerformance')}</h3>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('revenueTrends')}</p>
             </div>
           </div>
           <div className="h-96">
@@ -212,8 +214,8 @@ export default function Dashboard() {
 
         <div className="lg:col-span-2 premium-card p-8 lg:p-10 flex flex-col">
           <div className="mb-10">
-            <h3 className="text-xl font-bold text-slate-900 mb-1">Operations</h3>
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Continuous workflow access</p>
+            <h3 className="text-xl font-bold text-slate-900 mb-1">{t('quickActions')}</h3>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('systemUpdate')}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 flex-1">
             <Link to="/orders" className="flex items-center gap-5 p-5 rounded-3xl border border-slate-50 bg-slate-50/50 hover:bg-slate-900 hover:text-white transition-all duration-500 group overflow-hidden relative">
@@ -221,7 +223,7 @@ export default function Dashboard() {
                 <ShoppingCart size={24} />
               </div>
               <div className="relative z-10">
-                <span className="text-sm font-bold block">Initialize Order</span>
+                <span className="text-sm font-bold block">{t('addNewOrder')}</span>
                 <span className="text-[10px] font-medium text-slate-400 group-hover:text-white/60 transition-colors">Generate new invoice or quote</span>
               </div>
             </Link>
@@ -230,7 +232,7 @@ export default function Dashboard() {
                 <Users size={24} />
               </div>
               <div className="relative z-10">
-                <span className="text-sm font-bold block">Register Client</span>
+                <span className="text-sm font-bold block">{t('addCustomer')}</span>
                 <span className="text-[10px] font-medium text-slate-400 group-hover:text-white/60 transition-colors">Expand your customer database</span>
               </div>
             </Link>
@@ -239,7 +241,7 @@ export default function Dashboard() {
                 <Package size={24} />
               </div>
               <div className="relative z-10">
-                <span className="text-sm font-bold block">Asset Archive</span>
+                <span className="text-sm font-bold block">{t('productCatalog')}</span>
                 <span className="text-[10px] font-medium text-slate-400 group-hover:text-white/60 transition-colors">Update inventory and pricing</span>
               </div>
             </Link>

@@ -29,7 +29,9 @@ import DueManagement from './components/DueManagement';
 import TransactionHistory from './components/TransactionHistory';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { signInWithGoogle, logOut } from './lib/firebase';
+import { Languages } from 'lucide-react';
 
 interface NavItemProps {
   to: string;
@@ -59,6 +61,7 @@ function NavItem({ to, icon: Icon, label, active, onClick }: NavItemProps) {
 }
 
 function Login() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB] p-4 text-slate-900 overflow-hidden relative">
       {/* Decorative elements */}
@@ -102,14 +105,15 @@ function Navigation() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
 
   const navItems = [
-    { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-    { to: "/orders", icon: ShoppingCart, label: "Orders" },
-    { to: "/customers", icon: Users, label: "Customers" },
-    { to: "/products", icon: Package, label: "Products" },
-    { to: "/dues", icon: CreditCard, label: "Dues" },
-    { to: "/history", icon: Clock, label: "Daily Record" },
+    { to: "/", icon: LayoutDashboard, label: t('dashboard') },
+    { to: "/orders", icon: ShoppingCart, label: t('orders') },
+    { to: "/customers", icon: Users, label: t('customers') },
+    { to: "/products", icon: Package, label: t('products') },
+    { to: "/dues", icon: CreditCard, label: t('dues') },
+    { to: "/history", icon: Clock, label: t('dailyRecord') },
   ];
 
   return (
@@ -138,6 +142,14 @@ function Navigation() {
         </div>
 
         <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-900 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 shadow-sm"
+          >
+            <Languages size={16} />
+            <span>{language === 'en' ? 'Bangla' : 'English'}</span>
+          </button>
+
           {user && (
             <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
               <div className="relative">
@@ -152,7 +164,7 @@ function Navigation() {
               </div>
               <div className="hidden md:block">
                 <p className="text-xs font-black text-slate-900 leading-none">{user.displayName || 'User'}</p>
-                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Enterprise Access</p>
+                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">{t('enterpriseAccess')}</p>
               </div>
             </div>
           )}
@@ -161,7 +173,7 @@ function Navigation() {
             <button 
               onClick={() => logOut()}
               className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-              title="Sign Out"
+              title={t('signOut')}
             >
               <LogOut size={20} />
             </button>
@@ -224,6 +236,7 @@ function PageTransition({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
 
   if (loading) {
     return (
@@ -274,9 +287,11 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      <LanguageProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </LanguageProvider>
     </AuthProvider>
   );
 }

@@ -18,9 +18,11 @@ import {
   doc 
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function ProductList() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -117,10 +119,10 @@ export default function ProductList() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
-            Inventory Global Archive
+            {t('inventoryGlobal')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Product Catalog</h1>
-          <p className="text-slate-500 font-medium tracking-tight">Full-spectrum management of your shop's stock units and logistical data.</p>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('productCatalog')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight">{t('inventoryGlobal')}</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
@@ -128,7 +130,7 @@ export default function ProductList() {
             className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
           >
             <Download size={20} />
-            <span className="hidden sm:inline">Export Excel</span>
+            <span className="hidden sm:inline">{t('exportExcel')}</span>
           </button>
           <button 
             onClick={() => {
@@ -139,7 +141,7 @@ export default function ProductList() {
             className="premium-button-primary"
           >
             <Plus size={20} />
-            <span>Add Asset</span>
+            <span>{t('addAsset')}</span>
           </button>
         </div>
       </header>
@@ -150,7 +152,7 @@ export default function ProductList() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Search by identity or barcode..." 
+              placeholder={t('search')} 
               className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -163,11 +165,11 @@ export default function ProductList() {
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="data-grid-header">Asset Identifier</th>
-                <th className="data-grid-header">Registry Code</th>
-                <th className="data-grid-header">Unit Valuation</th>
-                <th className="data-grid-header">Stock Level</th>
-                <th className="data-grid-header text-right">Operational Logic</th>
+                <th className="data-grid-header">{t('assetIdentifier')}</th>
+                <th className="data-grid-header">{t('registryCode')}</th>
+                <th className="data-grid-header">{t('unitValuation')}</th>
+                <th className="data-grid-header">{t('stockLevel')}</th>
+                <th className="data-grid-header text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -197,12 +199,28 @@ export default function ProductList() {
                   </td>
                   <td className="px-6 py-5 font-bold text-slate-900 tabular-nums text-sm">{formatCurrency(product.price)}</td>
                   <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
-                      )} />
-                      <span className="text-sm font-bold text-slate-600 tabular-nums">{product.stock} Units</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full shadow-sm",
+                          product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500 animate-pulse" : "bg-rose-500"
+                        )} />
+                        <span className={cn(
+                          "text-sm font-bold tabular-nums",
+                          product.stock > 10 ? "text-slate-600" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
+                        )}>{product.stock} Units</span>
+                      </div>
+                      {product.stock <= 10 && (
+                        <div className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest w-fit",
+                          product.stock === 0 
+                            ? "bg-rose-50 text-rose-600 border border-rose-100" 
+                            : "bg-amber-50 text-amber-600 border border-amber-100"
+                        )}>
+                          <div className={cn("w-1 h-1 rounded-full", product.stock === 0 ? "bg-rose-600" : "bg-amber-600")} />
+                          {product.stock === 0 ? t('outOfStock') : t('lowStock')}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">
@@ -273,13 +291,28 @@ export default function ProductList() {
                     <span className="font-bold text-slate-900 tabular-nums">{formatCurrency(product.price)}</span>
                   </div>
                   <div className="text-right">
-                    <label className="detail-label">Available Units</label>
-                    <div className="flex items-center justify-end gap-2">
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
-                      )} />
-                      <span className="font-bold text-slate-900 tabular-nums">{product.stock} Units</span>
+                    <label className="detail-label">{t('stockLevel')}</label>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
+                        )} />
+                        <span className={cn(
+                          "font-bold tabular-nums",
+                          product.stock > 10 ? "text-slate-900" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
+                        )}>{product.stock} {t('items')}</span>
+                      </div>
+                      {product.stock <= 10 && (
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border",
+                          product.stock === 0 
+                            ? "bg-rose-50 text-rose-600 border-rose-100" 
+                            : "bg-amber-50 text-amber-600 border-amber-100"
+                        )}>
+                          {product.stock === 0 ? t('outOfStock') : t('lowStock')}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -312,8 +345,8 @@ export default function ProductList() {
                     <Package size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{editingProduct ? 'Modify Asset' : 'Register Asset'}</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Inventory Management Subsystem</p>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{editingProduct ? t('edit') : t('newOrder')}</h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
@@ -323,13 +356,13 @@ export default function ProductList() {
               <form onSubmit={handleSubmit} id="product-form" className="p-10 space-y-8 overflow-y-auto">
                 <div className="space-y-6">
                   <div>
-                    <label className="detail-label">Asset Nomenclature</label>
+                    <label className="detail-label">{t('assetIdentifier')}</label>
                     <div className="relative">
                       <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                       <input 
                         required
                         type="text" 
-                        placeholder="e.g. Premium Silk Scarf"
+                        placeholder={t('assetIdentifier')}
                         className="w-full pl-12 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -337,7 +370,7 @@ export default function ProductList() {
                     </div>
                   </div>
                   <div>
-                    <label className="detail-label">Global Registry Code (Barcode)</label>
+                    <label className="detail-label">{t('registryCode')}</label>
                     <div className="relative">
                       <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                       <input 
@@ -352,7 +385,7 @@ export default function ProductList() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="detail-label">Unit Valuation (Price)</label>
+                      <label className="detail-label">{t('unitValuation')}</label>
                       <div className="relative">
                         <BdtSign size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                         <input 
@@ -367,7 +400,7 @@ export default function ProductList() {
                       </div>
                     </div>
                     <div>
-                      <label className="detail-label">Quantifiable Stock</label>
+                      <label className="detail-label">{t('stockLevel')}</label>
                       <div className="relative">
                         <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                         <input 
@@ -389,14 +422,14 @@ export default function ProductList() {
                   onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-6 py-4 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-white transition-all"
                 >
-                  Discard Changes
+                  {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   form="product-form"
                   className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
                 >
-                  {editingProduct ? 'Update Registry' : 'Commit Registry'}
+                  {editingProduct ? t('save') : t('registerProduct')}
                 </button>
               </div>
             </motion.div>

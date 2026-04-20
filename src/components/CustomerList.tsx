@@ -14,9 +14,11 @@ import {
   doc 
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function CustomerList() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -119,10 +121,10 @@ export default function CustomerList() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
-            Client Relations
+            {t('clientNetwork')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Customer Directory</h1>
-          <p className="text-slate-500 font-medium tracking-tight">Manage your client relationships and strategic contact details.</p>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('customers')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight">{t('manageRelationships')}</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
@@ -130,7 +132,7 @@ export default function CustomerList() {
             className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
           >
             <Download size={20} />
-            <span className="hidden sm:inline">Export CSV</span>
+            <span className="hidden sm:inline">{t('exportExcel')}</span>
           </button>
           <button 
             onClick={() => {
@@ -141,7 +143,7 @@ export default function CustomerList() {
             className="premium-button-primary"
           >
             <Plus size={20} />
-            <span>Onboard Entity</span>
+            <span>{t('addCustomer')}</span>
           </button>
         </div>
       </header>
@@ -152,7 +154,7 @@ export default function CustomerList() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Locate customer record..." 
+              placeholder={t('search')} 
               className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -165,10 +167,10 @@ export default function CustomerList() {
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="data-grid-header">Entity Identity</th>
-                <th className="data-grid-header">Operational Registry (Phone)</th>
-                <th className="data-grid-header">Locality Details</th>
-                <th className="data-grid-header text-right">Operational Logic</th>
+                <th className="data-grid-header">{t('customer')}</th>
+                <th className="data-grid-header">{t('mobile')}</th>
+                <th className="data-grid-header">{t('address')}</th>
+                <th className="data-grid-header text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -287,8 +289,8 @@ export default function CustomerList() {
                   <User size={28} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{editingCustomer ? 'Edit Registry' : 'New Identification'}</h3>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">Audit Trail Entry</p>
+                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{editingCustomer ? t('edit') : t('newOrder')}</h3>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')}</p>
                 </div>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
@@ -297,13 +299,13 @@ export default function CustomerList() {
             </div>
             <form onSubmit={handleSubmit} className="p-10 space-y-8 overflow-y-auto">
               <div>
-                <label className="detail-label">Legal Identity</label>
+                <label className="detail-label">{t('customer')}</label>
                 <div className="relative">
                   <User size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input 
                     required
                     type="text" 
-                    placeholder="Full Nomenclature"
+                    placeholder={t('customer')}
                     className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -311,13 +313,13 @@ export default function CustomerList() {
                 </div>
               </div>
               <div>
-                <label className="detail-label">Registry Communications</label>
+                <label className="detail-label">{t('mobile')}</label>
                 <div className="relative">
                   <Phone size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input 
                     required
                     type="tel" 
-                    placeholder="Registry Contact Number"
+                    placeholder={t('mobile')}
                     className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all font-mono"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
@@ -325,11 +327,11 @@ export default function CustomerList() {
                 </div>
               </div>
               <div>
-                <label className="detail-label">Geospatial Locality</label>
+                <label className="detail-label">{t('address')}</label>
                 <div className="relative">
                   <MapPin size={18} className="absolute left-5 top-5 text-slate-300" />
                   <textarea 
-                    placeholder="Physical Domicile Registry"
+                    placeholder={t('address')}
                     className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all min-h-[120px]"
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
@@ -343,13 +345,13 @@ export default function CustomerList() {
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1 px-6 py-4 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-white transition-all"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleSubmit}
                 className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
               >
-                {editingCustomer ? 'Update Ledger' : 'Commit Registry'}
+                {editingCustomer ? t('save') : t('registerProduct')}
               </button>
             </div>
           </div>

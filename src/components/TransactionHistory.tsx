@@ -26,9 +26,11 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function TransactionHistory() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -94,10 +96,10 @@ export default function TransactionHistory() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
-            Financial Surveillance
+            {t('financialOverview')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">Daily Record</h1>
-          <p className="text-slate-500 font-medium tracking-tight">Granular date-wise monitoring of all financial inflows and settlements.</p>
+          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('dailyRecord')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight">{t('trackOutstanding')}</p>
         </div>
         <div className="flex items-center gap-4">
           <input 
@@ -111,14 +113,14 @@ export default function TransactionHistory() {
             className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
           >
             <Download size={20} />
-            <span className="hidden sm:inline">Export Log</span>
+            <span className="hidden sm:inline">{t('exportExcel')}</span>
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         <div className="premium-card p-8 bg-slate-900 text-white relative overflow-hidden group">
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Total Daily Captured</p>
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{t('paid')}</p>
           <h3 className="text-4xl font-black tabular-nums tracking-tighter flex items-center gap-2">
             <BdtSign size={32} className="text-white/20" />
             {formatCurrency(stats.total).replace('৳', '')}
@@ -126,13 +128,13 @@ export default function TransactionHistory() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-all duration-700" />
         </div>
         <div className="premium-card p-8">
-          <p className="detail-label text-slate-400">Transaction Count</p>
-          <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{stats.count} Record{stats.count !== 1 ? 's' : ''}</h3>
+          <p className="detail-label text-slate-400">{t('totalCombinedValuation')}</p>
+          <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{stats.count} {t('orderRegistry')}</h3>
         </div>
         <div className="premium-card p-8 flex items-center justify-between">
           <div>
-            <p className="detail-label text-slate-400">Peak Performance</p>
-            <h3 className="text-3xl font-bold text-emerald-600 tracking-tight">Active</h3>
+            <p className="detail-label text-slate-400">{t('status')}</p>
+            <h3 className="text-3xl font-bold text-emerald-600 tracking-tight">{t('paid')}</h3>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center animate-pulse shadow-sm">
             <TrendingUp size={24} />
@@ -146,15 +148,11 @@ export default function TransactionHistory() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Search reference or method..." 
+              placeholder={t('search')} 
               className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
-          <div className="flex items-center gap-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <Filter size={14} />
-            <span>Operational Filters Active</span>
           </div>
         </div>
 
@@ -162,10 +160,10 @@ export default function TransactionHistory() {
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="data-grid-header">Timeline Log</th>
-                <th className="data-grid-header">Settlement Flow</th>
-                <th className="data-grid-header">Methodology</th>
-                <th className="data-grid-header text-right">Liquidity Volume</th>
+                <th className="data-grid-header">{t('date')}</th>
+                <th className="data-grid-header">{t('orderId')}</th>
+                <th className="data-grid-header">{t('paymentMethod')}</th>
+                <th className="data-grid-header text-right">{t('total')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
