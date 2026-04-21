@@ -9,6 +9,10 @@
         "code": { "type": "string" },
         "price": { "type": "number" },
         "stock": { "type": "integer" },
+        "images": { 
+          "type": "array", 
+          "items": { "type": "string" } 
+        },
         "ownerId": { "type": "string" }
       },
       "required": ["name", "price", "stock", "ownerId"]

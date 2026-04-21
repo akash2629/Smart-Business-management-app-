@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Barcode, Layers, X, Download } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Search, Edit2, Trash2, Package, Barcode, Layers, X, Download, Image as ImageIcon, Upload, Loader2, Camera } from 'lucide-react';
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -25,10 +25,18 @@ export default function ProductList() {
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<Product>({ name: '', code: '', price: 0, stock: 0 });
+  const [formData, setFormData] = useState<Product>({ 
+    name: '', 
+    code: '', 
+    price: 0, 
+    stock: 0,
+    images: []
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -54,9 +62,87 @@ export default function ProductList() {
     }
   };
 
+  const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          // Compress to 70% quality JPG
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !user) return;
+
+    setUploading(true);
+    const newImages = [...(formData.images || [])];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        if (newImages.length >= 10) break; // Hard limit for safety
+        const file = files[i];
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is too large (>5MB)`);
+          continue;
+        }
+        const compressed = await compressImage(file);
+        newImages.push(compressed);
+      }
+      setFormData({ ...formData, images: newImages });
+      toast.success('Images processed and added');
+    } catch (error) {
+      console.error(error);
+      toast.error('Image processing failed');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const newImages = [...(formData.images || [])];
+    newImages.splice(index, 1);
+    setFormData({ ...formData, images: newImages });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    if ((formData.images?.length || 0) < 6) {
+      if (!confirm('You have strictly fewer than 6 images. Proceed anyway?')) return;
+    }
 
     try {
       if (editingProduct?.id) {
@@ -65,7 +151,8 @@ export default function ProductList() {
           name: formData.name,
           code: formData.code,
           price: formData.price,
-          stock: formData.stock
+          stock: formData.stock,
+          images: formData.images || []
         });
         toast.success('Product updated');
       } else {
@@ -77,7 +164,7 @@ export default function ProductList() {
       }
       setIsModalOpen(false);
       setEditingProduct(null);
-      setFormData({ name: '', code: '', price: 0, stock: 0 });
+      setFormData({ name: '', code: '', price: 0, stock: 0, images: [] });
       fetchProducts();
     } catch (error) {
       toast.error('Operation failed');
@@ -355,6 +442,61 @@ export default function ProductList() {
               </div>
               <form onSubmit={handleSubmit} id="product-form" className="p-10 space-y-8 overflow-y-auto">
                 <div className="space-y-6">
+                  {/* Image Upload Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="detail-label">Asset Visuals</label>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                        (formData.images?.length || 0) < 6 
+                          ? "bg-amber-50 text-amber-600 border-amber-100" 
+                          : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                      )}>
+                        {(formData.images?.length || 0)} / 6 Minimum
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                      {formData.images?.map((url, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-100 group">
+                          <img src={url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <button 
+                            type="button"
+                            onClick={() => removeImage(idx)}
+                            className="absolute inset-0 bg-rose-600/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button
+                        type="button"
+                        disabled={uploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 text-slate-300 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group"
+                      >
+                        {uploading ? (
+                          <Loader2 size={20} className="animate-spin text-brand-primary" />
+                        ) : (
+                          <>
+                            <Upload size={20} className="group-hover:scale-110 transition-transform" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Add {6 - (formData.images?.length || 0) > 0 ? 6 - (formData.images?.length || 0) : ''} More</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    
+                    <input 
+                      ref={fileInputRef}
+                      type="file" 
+                      multiple 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+
                   <div>
                     <label className="detail-label">{t('assetIdentifier')}</label>
                     <div className="relative">

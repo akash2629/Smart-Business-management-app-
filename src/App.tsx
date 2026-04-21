@@ -30,6 +30,7 @@ import CustomerList from './components/CustomerList';
 import ProductList from './components/ProductList';
 import DueManagement from './components/DueManagement';
 import TransactionHistory from './components/TransactionHistory';
+import UnifiedDashboard from './components/UnifiedDashboard';
 import Settings from './components/Settings';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -140,7 +141,7 @@ function Navigation() {
   }, []);
 
   const navItems = [
-    { to: "/", icon: LayoutDashboard, label: t('dashboard') },
+    { to: "/", icon: LayoutDashboard, label: "Command Center" },
     { to: "/orders", icon: ShoppingCart, label: t('orders') },
     { to: "/customers", icon: Users, label: t('customers') },
     { to: "/products", icon: Package, label: t('products') },
@@ -306,7 +307,7 @@ function AppContent() {
         <div className="max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             <Routes>
-              <Route path="/" element={<PageTransition><Dashboard /></PageTransition>} />
+              <Route path="/" element={<PageTransition><UnifiedDashboard /></PageTransition>} />
               <Route path="/orders" element={<PageTransition><OrderList /></PageTransition>} />
               <Route path="/customers" element={<PageTransition><CustomerList /></PageTransition>} />
               <Route path="/products" element={<PageTransition><ProductList /></PageTransition>} />

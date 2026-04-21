@@ -4,6 +4,7 @@ export interface Product {
   code: string;
   price: number;
   stock: number;
+  images?: string[];
   ownerId?: string;
 }
 

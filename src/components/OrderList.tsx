@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Trash2, ShoppingCart, User, Calendar, FileText, X, Printer, Download, Package, Phone, MapPin, Edit2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, ShoppingCart, User, Calendar, FileText, X, Printer, Download, Package, Phone, MapPin, Edit2, AlertCircle, Layers, Barcode } from 'lucide-react';
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
 import { Order, Customer, Product, OrderItem } from '../types';
@@ -33,7 +33,48 @@ export default function OrderList() {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isQuickProductModalOpen, setIsQuickProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  
+  // Quick Product State
+  const [quickProduct, setQuickProduct] = useState<Product>({
+    name: '',
+    code: '',
+    price: 0,
+    stock: 0
+  });
+
+  const handleQuickProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!quickProduct.name || !quickProduct.price) return toast.error('Name and Price are required');
+
+    try {
+      const docRef = await addDoc(collection(db, 'products'), {
+        ...quickProduct,
+        ownerId: user.uid
+      });
+      
+      toast.success('Product registered successfully');
+      
+      // Refresh products
+      const productsQ = query(collection(db, 'products'), where('ownerId', '==', user.uid));
+      const productsSnap = await getDocs(productsQ);
+      const updatedProducts = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+      setProducts(updatedProducts);
+      
+      // Select the new product in the last item if it's empty
+      const lastIndex = orderForm.items.length - 1;
+      if (lastIndex >= 0) {
+        updateItem(lastIndex, 'productId', docRef.id);
+      }
+      
+      setIsQuickProductModalOpen(false);
+      setQuickProduct({ name: '', code: '', price: 0, stock: 0 });
+    } catch (error) {
+      toast.error('Failed to register product');
+    }
+  };
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   
@@ -673,7 +714,19 @@ export default function OrderList() {
                     <div key={index} className="premium-card p-6 md:p-8 bg-white hover:bg-slate-50/20 transition-all border-slate-50">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                         <div className="md:col-span-5">
-                          <label className="detail-label">{t('product')}</label>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="detail-label">{t('product')}</label>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setIsQuickProductModalOpen(true);
+                              }}
+                              className="text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
+                            >
+                              <Plus size={10} />
+                              {t('newOrder')}
+                            </button>
+                          </div>
                           <select
                             required
                             className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-sm"
@@ -784,6 +837,106 @@ export default function OrderList() {
                 {editingOrderId ? t('save') : t('newOrder')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Product Modal */}
+      {isQuickProductModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsQuickProductModalOpen(false)} />
+          <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200">
+            <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
+                  <Package size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{t('registerProduct')}</h3>
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Quick Asset Entry</p>
+                </div>
+              </div>
+              <button onClick={() => setIsQuickProductModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleQuickProductSubmit} className="p-10 space-y-6">
+              <div>
+                <label className="detail-label">{t('assetIdentifier')}</label>
+                <div className="relative">
+                  <Package size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input
+                    required
+                    type="text"
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
+                    placeholder={t('assetIdentifier')}
+                    value={quickProduct.name}
+                    onChange={(e) => setQuickProduct({...quickProduct, name: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="detail-label">{t('unitValuation')}</label>
+                  <div className="relative">
+                    <BdtSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 tabular-nums"
+                      placeholder="0.00"
+                      value={quickProduct.price}
+                      onChange={(e) => setQuickProduct({...quickProduct, price: parseFloat(e.target.value)})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="detail-label">{t('stockLevel')}</label>
+                  <div className="relative">
+                   <Layers size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                    <input
+                      required
+                      type="number"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 tabular-nums"
+                      placeholder="0"
+                      value={quickProduct.stock}
+                      onChange={(e) => setQuickProduct({...quickProduct, stock: parseInt(e.target.value)})}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="detail-label">{t('registryCode')}</label>
+                <div className="relative">
+                  <Barcode size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input
+                    type="text"
+                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
+                    placeholder="Code/SKU"
+                    value={quickProduct.code}
+                    onChange={(e) => setQuickProduct({...quickProduct, code: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setIsQuickProductModalOpen(false)}
+                  className="flex-1 px-4 py-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
+                >
+                  {t('cancel')}
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                >
+                  {t('save')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
