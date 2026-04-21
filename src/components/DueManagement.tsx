@@ -160,28 +160,37 @@ export default function DueManagement() {
     
     try {
       // Fetch all relevant data for a deep audit
-      const [ordersSnap, paymentsSnap] = await Promise.all([
+      const [ordersSnap, paymentsSnap, customersSnap] = await Promise.all([
         getDocs(query(collection(db, 'orders'), where('ownerId', '==', user.uid))),
-        getDocs(query(collection(db, 'payments'), where('ownerId', '==', user.uid)))
+        getDocs(query(collection(db, 'payments'), where('ownerId', '==', user.uid))),
+        getDocs(query(collection(db, 'customers'), where('ownerId', '==', user.uid)))
       ]);
 
       const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
       const allPayments = paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      const allCustomers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
 
-      const worksheetData = dues.map(record => {
-        const customer = customers.find(c => c.id === record.id);
+      // Export ALL customers, not just those with current dues, to provide a full report
+      const worksheetData = allCustomers.map(customer => {
+        const customerOrders = allOrders.filter(o => o.customerId === customer.id);
+        const customerPayments = allPayments
+          .filter(p => p.customerId === customer.id)
+          .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+
+        const totalAmount = customerOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const totalPaid = customerPayments.reduce((sum, p) => sum + p.amount, 0);
+        const totalDue = totalAmount - totalPaid;
         
         // Extract chronological buy dates
-        const buyDates = allOrders
-          .filter(o => o.customerId === record.id)
+        const buyDates = customerOrders
+          .sort((a, b) => {
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+            return dateA - dateB;
+          })
           .map(o => o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'N/A')
           .filter((v, i, a) => a.indexOf(v) === i) // Unique dates
           .join(', ');
-
-        // Extract chronological settlement dates and amounts
-        const customerPayments = allPayments
-          .filter(p => p.customerId === record.id)
-          .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
 
         const paidDates = customerPayments
           .map(p => p.paymentDate)
@@ -192,14 +201,14 @@ export default function DueManagement() {
           .join(', ');
 
         return {
-          'Customer Name': record.name,
-          'Mobile Number': customer?.phone || 'N/A',
-          'Address': customer?.address || 'N/A',
-          'Product Buy Date': buyDates || 'No purchases logged',
-          'Due Paid Date': paidDates || 'No collections logged',
+          'Customer Name': customer.name,
+          'Mobile Number': customer.phone || 'N/A',
+          'Address': customer.address || 'N/A',
+          'Product Buy Date': buyDates || 'No purchases',
+          'Date Wise Due Paid Date': paidDates || 'No payments',
           'Paid Money': paidAmounts || '0',
-          'Total Paid': record.total_paid,
-          'Total Due': record.remaining_balance
+          'Total Paid': totalPaid,
+          'Total Due': totalDue
         };
       });
 
@@ -207,11 +216,11 @@ export default function DueManagement() {
       
       // Add column widths for better readability
       const wscols = [
-        { wch: 25 }, // Name
-        { wch: 15 }, // Mobile
+        { wch: 25 }, // Customer Name
+        { wch: 15 }, // Mobile Number
         { wch: 30 }, // Address
-        { wch: 30 }, // Buy Date
-        { wch: 30 }, // Paid Date
+        { wch: 30 }, // Product Buy Date
+        { wch: 30 }, // Date Wise Due Paid Date
         { wch: 20 }, // Paid Money
         { wch: 15 }, // Total Paid
         { wch: 15 }, // Total Due
@@ -219,9 +228,9 @@ export default function DueManagement() {
       worksheet['!cols'] = wscols;
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Executive_Due_Audit');
-      XLSX.writeFile(workbook, `Deep_Audit_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Enterprise audit report exported successfully');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer_Financial_Registry');
+      XLSX.writeFile(workbook, `Customer_Deep_Audit_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Comprehensive XLSX report exported successfully');
     } catch (error) {
       console.error(error);
       toast.error('Audit synthesis failed');

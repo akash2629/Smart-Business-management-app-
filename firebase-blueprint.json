@@ -66,9 +66,43 @@
         "ownerId": { "type": "string" }
       },
       "required": ["customerId", "orderId", "amount", "ownerId"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User specific application settings like themes",
+      "type": "object",
+      "properties": {
+        "theme": {
+          "type": "object",
+          "properties": {
+            "primary": { "type": "string" },
+            "secondary": { "type": "string" },
+            "accent": { "type": "string" }
+          }
+        }
+      }
+    },
+    "ResetCode": {
+      "title": "ResetCode",
+      "description": "Temporary verification code for data reset",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "expiry": { "type": "number" },
+        "email": { "type": "string" }
+      },
+      "required": ["code", "expiry", "email"]
     }
   },
   "firestore": {
+    "/shop_reset_sessions/{userId}": {
+      "schema": "ResetCode",
+      "description": "Verification codes for data reset sessions"
+    },
+    "/user_settings/{userId}": {
+      "schema": "UserSettings",
+      "description": "User specific settings and theme preferences"
+    },
     "/products/{productId}": {
       "schema": "Product",
       "description": "Main product collection"

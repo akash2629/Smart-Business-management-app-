@@ -64,7 +64,20 @@ service cloud.firestore {
              p.ownerId == request.auth.uid;
     }
 
+    function isValidUserSettings(s) {
+      return s.theme is map &&
+             (s.theme.keys().hasAll(['primary', 'secondary', 'accent']) || s.theme.keys().size() == 0);
+    }
+
     // --- Rules ---
+
+    match /user_settings/{userId} {
+      allow read, write: if isSignedIn() && userId == request.auth.uid;
+    }
+
+    match /shop_reset_sessions/{userId} {
+      allow read, write: if false; // Only Admin SDK access
+    }
 
     match /products/{productId} {
       allow read: if isOwner(existing());

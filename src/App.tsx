@@ -18,7 +18,9 @@ import {
   User as UserIcon,
   ChevronRight,
   Clock,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,6 +34,7 @@ import Settings from './components/Settings';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { signInWithGoogle, logOut } from './lib/firebase';
 import { Languages } from 'lucide-react';
 
@@ -52,8 +55,8 @@ function NavItem({ to, icon: Icon, label, active, onClick }: NavItemProps) {
       className={cn(
         "group flex items-center gap-2.5 px-4 py-2 rounded-xl transition-all duration-300 whitespace-nowrap",
         active 
-          ? "bg-slate-900 text-white shadow-lg shadow-slate-200" 
-          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+          ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/10" 
+          : "text-brand-secondary hover:bg-slate-50 hover:text-brand-primary"
       )}
     >
       <Icon size={18} className={cn("transition-transform duration-300", active ? "scale-110" : "group-hover:scale-110")} />
@@ -77,7 +80,7 @@ function Login() {
         className="max-w-md w-full bg-white/80 backdrop-blur-xl border border-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] p-10 text-center space-y-10 relative z-10"
       >
         <div className="flex flex-col items-center gap-6">
-          <div className="w-16 h-16 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-slate-200">
+          <div className="w-16 h-16 bg-brand-primary text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-brand-primary/20">
             <Store size={32} />
           </div>
           <div>
@@ -89,7 +92,7 @@ function Login() {
         <div className="space-y-4">
           <button 
             onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-4 bg-slate-900 py-4 px-6 rounded-2xl font-bold text-white hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-slate-200 group"
+            className="w-full flex items-center justify-center gap-4 bg-brand-primary py-4 px-6 rounded-2xl font-bold text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-brand-primary/20 group"
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6 shrink-0 bg-white p-0.5 rounded-full" />
             <span>Continue with Google</span>
@@ -108,6 +111,20 @@ function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useAuth();
   const { t, language, setLanguage } = useLanguage();
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: t('dashboard') },
@@ -123,8 +140,8 @@ function Navigation() {
     <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-10">
-          <Link to="/" className="flex items-center gap-3 text-slate-900 font-serif font-black text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-slate-200">
+          <Link to="/" className="flex items-center gap-3 text-brand-primary font-serif font-black text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
+            <div className="w-10 h-10 bg-brand-primary text-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
               <Store size={22} />
             </div>
             <span className="hidden sm:inline">SmartShop</span>
@@ -145,6 +162,12 @@ function Navigation() {
         </div>
 
         <div className="flex items-center gap-4">
+          {!isOnline && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl font-bold text-[10px] uppercase tracking-widest border border-amber-100 shadow-sm animate-pulse">
+              <WifiOff size={14} />
+              <span>Offline Mode</span>
+            </div>
+          )}
           <button 
             onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-900 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 shadow-sm"
@@ -182,7 +205,7 @@ function Navigation() {
             </button>
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2.5 bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 transition-all hover:bg-slate-800"
+              className="lg:hidden p-2.5 bg-brand-primary text-white rounded-xl shadow-lg shadow-brand-primary/20 transition-all hover:opacity-90"
             >
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -213,7 +236,7 @@ function Navigation() {
             </div>
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                 <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
+                 <div className="w-3 h-3 bg-brand-accent rounded-full animate-pulse" />
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Security Active</span>
               </div>
               <p className="text-[10px] font-black text-slate-900">v1.1.0 CE</p>
@@ -247,7 +270,7 @@ function AppContent() {
         <div className="flex flex-col items-center gap-6">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
           <div className="flex flex-col items-center">
             <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-1">Encrypted Access</p>
@@ -291,11 +314,13 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <LanguageProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </LanguageProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </LanguageProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

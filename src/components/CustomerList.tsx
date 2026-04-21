@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Trash2, User, Phone, MapPin, X, Download, History,
 import { toast } from 'sonner';
 import { Customer, Order } from '../types';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
+import * as XLSX from 'xlsx';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -85,24 +86,68 @@ export default function CustomerList() {
     }
   };
 
-  const exportToCSV = () => {
-    const headers = ['Name', 'Phone', 'Address'];
-    const rows = customers.map(c => [
-      `"${c.name.replace(/"/g, '""')}"`,
-      `"${(c.phone || '').replace(/"/g, '""')}"`,
-      `"${(c.address || '').replace(/"/g, '""')}"`
-    ].join(','));
+  const exportToExcel = async () => {
+    if (!user) return;
+    toast.info('Synthesizing comprehensive customer audit...');
     
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'Customer_Directory.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Exporting customer directory...');
+    try {
+      const [ordersSnap, paymentsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'orders'), where('ownerId', '==', user.uid))),
+        getDocs(query(collection(db, 'payments'), where('ownerId', '==', user.uid)))
+      ]);
+
+      const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      const allPayments = paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+
+      const worksheetData = customers.map(customer => {
+        const customerOrders = allOrders.filter(o => o.customerId === customer.id);
+        const customerPayments = allPayments
+          .filter(p => p.customerId === customer.id)
+          .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+
+        const totalAmount = customerOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const totalPaid = customerPayments.reduce((sum, p) => sum + p.amount, 0);
+        const totalDue = totalAmount - totalPaid;
+        
+        const buyDates = customerOrders
+          .sort((a, b) => {
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+            return dateA - dateB;
+          })
+          .map(o => o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'N/A')
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .join(', ');
+
+        const paidDates = customerPayments.map(p => p.paymentDate).join(', ');
+        const paidAmounts = customerPayments.map(p => p.amount).join(', ');
+
+        return {
+          'Customer Name': customer.name,
+          'Mobile Number': customer.phone || 'N/A',
+          'Address': customer.address || 'N/A',
+          'Product Buy Date': buyDates || 'No purchases',
+          'Date Wise Due Paid Date': paidDates || 'No payments',
+          'Paid Money': paidAmounts || '0',
+          'Total Paid': totalPaid,
+          'Total Due': totalDue
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const wscols = [
+        { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 15 }
+      ];
+      worksheet['!cols'] = wscols;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer_Audit');
+      XLSX.writeFile(workbook, `Customer_Registry_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Enterprise XLSX report exported');
+    } catch (error) {
+      console.error(error);
+      toast.error('Export failed');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -167,8 +212,8 @@ export default function CustomerList() {
         </div>
         <div className="flex items-center gap-4">
           <button 
-            onClick={exportToCSV}
-            className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+            onClick={exportToExcel}
+            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5"
           >
             <Download size={20} />
             <span className="hidden sm:inline">{t('exportExcel')}</span>
@@ -194,7 +239,7 @@ export default function CustomerList() {
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
+              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

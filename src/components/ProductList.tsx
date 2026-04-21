@@ -127,7 +127,7 @@ export default function ProductList() {
         <div className="flex items-center gap-4">
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5"
           >
             <Download size={20} />
             <span className="hidden sm:inline">{t('exportExcel')}</span>
@@ -153,7 +153,7 @@ export default function ProductList() {
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
+              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

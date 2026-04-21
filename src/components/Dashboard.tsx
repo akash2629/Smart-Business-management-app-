@@ -8,7 +8,8 @@ import {
   Wallet, 
   Clock,
   ShoppingCart,
-  Download
+  Download,
+  RefreshCcw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -31,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 
 function StatCard({ title, value, icon: Icon, color, trend }: { title: string, value: string | number, icon: any, color: string, trend?: string }) {
   return (
@@ -59,8 +61,10 @@ function StatCard({ title, value, icon: Icon, color, trend }: { title: string, v
 export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -71,6 +75,7 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     if (!user) return;
     setLoading(true);
+    setError(null);
     try {
       const ordersQ = query(collection(db, 'orders'), where('ownerId', '==', user.uid));
       const customersQ = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
@@ -80,7 +85,10 @@ export default function Dashboard() {
         getDocs(ordersQ),
         getDocs(customersQ),
         getDocs(productsQ)
-      ]);
+      ]).catch(err => {
+        console.error('Firestore Error:', err);
+        throw new Error('Failed to reach database. Check your connection.');
+      });
 
       const orders = ordersSnap.docs.map(doc => doc.data());
       
@@ -133,19 +141,42 @@ export default function Dashboard() {
     }
   };
 
-  if (loading || !data) {
+  if (loading && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="w-12 h-12 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-brand-primary rounded-full animate-spin"></div>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">{t('loading')}</p>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="premium-card p-12 max-w-sm text-center space-y-6">
+          <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-rose-100">
+            <TrendingDown size={40} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-slate-900">Sync Interrupted</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed">{error}</p>
+          </div>
+          <button 
+            onClick={fetchDashboardData}
+            className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+          >
+            <RefreshCcw size={16} />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const chartData = [
-    { name: t('orders'), value: data.sales, color: '#0f172a' },
+    { name: t('orders'), value: data.sales, color: colors.primary },
     { name: t('inventoryAssets'), value: data.purchase, color: '#f59e0b' },
-    { name: t('capturedRevenue'), value: data.paid, color: '#10b981' },
+    { name: t('capturedRevenue'), value: data.paid, color: colors.accent },
     { name: t('outstandingCredit'), value: data.due, color: '#f43f5e' },
   ];
 
@@ -167,20 +198,20 @@ export default function Dashboard() {
           title={t('todaySales')}
           value={formatCurrency(data.todaySales)} 
           icon={TrendingUp} 
-          color="bg-emerald-500"
+          color="bg-brand-accent"
         />
         <StatCard 
           title={t('monthlySales')}
           value={formatCurrency(data.monthlySales)} 
           icon={TrendingUp} 
-          color="bg-slate-900"
+          color="bg-brand-primary"
           trend="Current Period"
         />
         <StatCard 
           title={t('totalRevenue')}
           value={formatCurrency(data.sales)} 
           icon={TrendingUp} 
-          color="bg-slate-900"
+          color="bg-brand-primary"
           trend="Lifetime"
         />
         <StatCard 
@@ -211,13 +242,13 @@ export default function Dashboard() {
           title={t('totalCustomers')}
           value={data.customers} 
           icon={Users} 
-          color="bg-slate-800"
+          color="bg-brand-primary/80"
         />
         <StatCard 
           title={t('products')}
           value={data.products} 
           icon={Package} 
-          color="bg-slate-700"
+          color="bg-brand-primary/70"
         />
       </div>
 

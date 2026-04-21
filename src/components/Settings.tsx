@@ -1,17 +1,45 @@
 import React, { useState } from 'react';
-import { ShieldAlert, Mail, Key, RefreshCcw, AlertTriangle, CheckCircle2, ArrowRight, Settings as SettingsIcon } from 'lucide-react';
+import { ShieldAlert, Mail, Key, RefreshCcw, AlertTriangle, CheckCircle2, ArrowRight, Settings as SettingsIcon, Palette, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 export default function Settings() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { colors, updateColors, resetTheme } = useTheme();
   const [step, setStep] = useState<'initial' | 'verification' | 'success'>('initial');
   const [loading, setLoading] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
+
+  const colorPresets = [
+    { label: 'Slate (Default)', primary: '#0f172a', secondary: '#64748b', accent: '#10b981' },
+    { label: 'Oceanic', primary: '#0c4a6e', secondary: '#0369a1', accent: '#38bdf8' },
+    { label: 'Royal', primary: '#312e81', secondary: '#4338ca', accent: '#818cf8' },
+    { label: 'Forest', primary: '#064e3b', secondary: '#065f46', accent: '#10b981' },
+    { label: 'Midnight', primary: '#171717', secondary: '#404040', accent: '#d4d4d4' },
+    { label: 'Burgundy', primary: '#450a0a', secondary: '#7f1d1d', accent: '#f87171' },
+  ];
+
+  const handleColorChange = async (type: 'primary' | 'secondary' | 'accent', value: string) => {
+    try {
+      await updateColors({ [type]: value });
+    } catch (error) {
+      toast.error('Failed to update theme');
+    }
+  };
+
+  const handleResetTheme = async () => {
+    try {
+      await resetTheme();
+      toast.success('Theme reset to defaults');
+    } catch (error) {
+      toast.error('Failed to reset theme');
+    }
+  };
 
   const requestReset = async () => {
     if (!user?.email || !user?.uid) return;
@@ -26,7 +54,10 @@ export default function Settings() {
       if (!response.ok) throw new Error(result.error || 'Failed to request reset');
       
       if (result.message.includes('logged to the server console')) {
-        toast.info('API Key missing: The 6-digit code has been logged to the server logs for testing.', { duration: 10000 });
+        toast.info('API Key missing: The 6-digit code has been logged to the server logs and auto-populated for you.', { duration: 10000 });
+        if (result.code) {
+          setVerificationCode(result.code);
+        }
       } else {
         toast.success('Verification code sent to your email');
       }
@@ -73,7 +104,106 @@ export default function Settings() {
         </div>
       </header>
 
-      <div className="max-w-2xl">
+      <div className="max-w-4xl space-y-12">
+        {/* Visual Identity Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Palette className="text-brand-primary" size={20} />
+                Visual Identity
+              </h2>
+              <p className="text-sm text-slate-500 font-medium tracking-tight">Customize your shop instance colors to match your brand.</p>
+            </div>
+            <button 
+              onClick={handleResetTheme}
+              className="flex items-center gap-2 px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-brand-primary transition-colors"
+            >
+              <RotateCcw size={14} />
+              Reset to Defaults
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="premium-card p-6 space-y-4">
+              <label className="detail-label">Primary Color</label>
+              <div className="flex items-center gap-4">
+                <input 
+                  type="color" 
+                  value={colors.primary}
+                  onChange={(e) => handleColorChange('primary', e.target.value)}
+                  className="w-12 h-12 rounded-xl cursor-pointer border-0 p-0"
+                />
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-slate-900">{colors.primary.toUpperCase()}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Main UI elements & buttons</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="premium-card p-6 space-y-4">
+              <label className="detail-label">Secondary Color</label>
+              <div className="flex items-center gap-4">
+                <input 
+                  type="color" 
+                  value={colors.secondary}
+                  onChange={(e) => handleColorChange('secondary', e.target.value)}
+                  className="w-12 h-12 rounded-xl cursor-pointer border-0 p-0"
+                />
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-slate-900">{colors.secondary.toUpperCase()}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Text & subtle accents</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="premium-card p-6 space-y-4">
+              <label className="detail-label">Accent Color</label>
+              <div className="flex items-center gap-4">
+                <input 
+                  type="color" 
+                  value={colors.accent}
+                  onChange={(e) => handleColorChange('accent', e.target.value)}
+                  className="w-12 h-12 rounded-xl cursor-pointer border-0 p-0"
+                />
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-slate-900">{colors.accent.toUpperCase()}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Success states & highlights</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="premium-card p-8 space-y-6">
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Curated Presets</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {colorPresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => updateColors({ primary: preset.primary, secondary: preset.secondary, accent: preset.accent })}
+                  className="group flex flex-col items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-all text-center border border-transparent hover:border-slate-100"
+                >
+                  <div className="flex -space-x-2">
+                    <div className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: preset.primary }} />
+                    <div className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: preset.secondary }} />
+                    <div className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: preset.accent }} />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-900 transition-colors uppercase tracking-wider">{preset.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-rose-600 tracking-tight flex items-center gap-2">
+              <ShieldAlert size={20} />
+              Danger Zone
+            </h2>
+            <p className="text-sm text-slate-500 font-medium tracking-tight">Irreversible actions that affect your entire shop instance.</p>
+          </div>
+          <div className="max-w-2xl">
         <AnimatePresence mode="wait">
           {step === 'initial' && (
             <motion.div 
@@ -135,7 +265,7 @@ export default function Settings() {
               className="premium-card p-10 space-y-8"
             >
               <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
+                <div className="w-16 h-16 bg-brand-primary text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-brand-primary/20">
                   <Mail size={32} />
                 </div>
                 <div>
@@ -156,7 +286,7 @@ export default function Settings() {
                       type="text" 
                       maxLength={6}
                       placeholder="000 000"
-                      className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-black text-2xl text-slate-900 transition-all font-mono tracking-[0.5em] text-center"
+                      className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-black text-2xl text-slate-900 transition-all font-mono tracking-[0.5em] text-center"
                       value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
                     />
@@ -174,7 +304,7 @@ export default function Settings() {
                   <button 
                     type="submit"
                     disabled={loading || verificationCode.length !== 6}
-                    className="flex-[2] flex items-center justify-center gap-3 bg-slate-900 py-5 rounded-[2rem] font-black text-xs text-white uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 disabled:opacity-50"
+                    className="flex-[2] flex items-center justify-center gap-3 bg-brand-primary py-5 rounded-[2rem] font-black text-xs text-white uppercase tracking-[0.2em] hover:opacity-90 transition-all shadow-2xl shadow-brand-primary/20 disabled:opacity-50"
                   >
                     {loading ? <RefreshCcw size={16} className="animate-spin" /> : <ArrowRight size={16} />}
                     <span>Confirm Destruction</span>
@@ -191,7 +321,7 @@ export default function Settings() {
               animate={{ opacity: 1, scale: 1 }}
               className="premium-card p-12 text-center space-y-8"
             >
-              <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-emerald-50 animate-bounce">
+              <div className="w-24 h-24 bg-brand-accent/10 text-brand-accent rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-brand-accent/5 animate-bounce">
                 <CheckCircle2 size={48} />
               </div>
               <div className="space-y-2">
@@ -200,7 +330,7 @@ export default function Settings() {
               </div>
               <button 
                 onClick={() => window.location.href = '/'}
-                className="inline-flex items-center gap-3 bg-slate-900 px-10 py-5 rounded-[2rem] font-black text-xs text-white uppercase tracking-[0.2em] hover:bg-slate-800 transition-all active:scale-95"
+                className="inline-flex items-center gap-3 bg-brand-primary px-10 py-5 rounded-[2rem] font-black text-xs text-white uppercase tracking-[0.2em] hover:opacity-90 transition-all active:scale-95"
               >
                 Go to Dashboard
                 <ArrowRight size={16} />
@@ -209,6 +339,8 @@ export default function Settings() {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </section>
+  </div>
+</div>
   );
 }
