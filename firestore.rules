@@ -75,8 +75,12 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && userId == request.auth.uid;
     }
 
+    match /test/connection {
+      allow read: if true; // Publicly readable for connection sanity checks
+    }
+
     match /shop_reset_sessions/{userId} {
-      allow read, write: if false; // Only Admin SDK access
+      allow read, write: if isSignedIn() && userId == request.auth.uid;
     }
 
     match /products/{productId} {
