@@ -84,7 +84,7 @@ function Login() {
             <Store size={32} />
           </div>
           <div>
-            <h1 className="text-4xl font-serif font-black tracking-tight mb-2">SmartShop</h1>
+            <h1 className="text-4xl font-serif font-black tracking-tight mb-2">SSM</h1>
             <p className="text-slate-500 font-medium text-sm">Professional Shop Management Hub</p>
           </div>
         </div>
@@ -157,7 +157,7 @@ function Navigation() {
             <div className="w-10 h-10 bg-brand-primary text-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
               <Store size={22} />
             </div>
-            <span className="hidden sm:inline">SmartShop</span>
+            <span className="hidden sm:inline">SSM</span>
           </Link>
 
           {/* Desktop Nav */}
