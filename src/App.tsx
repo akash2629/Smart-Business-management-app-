@@ -22,7 +22,7 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import Dashboard from './components/Dashboard';
 import OrderList from './components/OrderList';
@@ -91,7 +91,20 @@ function Login() {
         
         <div className="space-y-4">
           <button 
-            onClick={signInWithGoogle}
+            onClick={async () => {
+              try {
+                await signInWithGoogle();
+              } catch (error: any) {
+                console.error('Login Error:', error);
+                if (error.code === 'auth/popup-blocked') {
+                  toast.error('Sign-in popup was blocked by your browser. Please allow popups for this site.');
+                } else if (error.code === 'auth/unauthorized-domain') {
+                  toast.error('Domain not authorized. Please add your Netlify domain to the Firebase Console "Authorized Domains" list.');
+                } else {
+                  toast.error('Connection failed: ' + (error.message || 'Unknown error'));
+                }
+              }
+            }}
             className="w-full flex items-center justify-center gap-4 bg-brand-primary py-4 px-6 rounded-2xl font-bold text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-brand-primary/20 group"
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6 shrink-0 bg-white p-0.5 rounded-full" />
