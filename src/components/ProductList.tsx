@@ -201,23 +201,23 @@ export default function ProductList() {
   );
 
   return (
-    <div className="space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
+    <div className="space-y-6 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('inventoryGlobal')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('productCatalog')}</h1>
-          <p className="text-slate-500 font-medium tracking-tight">{t('inventoryGlobal')}</p>
+          <h1 className="tracking-tighter">{t('productCatalog')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight hdden sm:block text-xs sm:text-base">{t('inventoryGlobal')}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-4">
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5"
+            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5 p-2 sm:p-3"
           >
-            <Download size={20} />
-            <span className="hidden sm:inline">{t('exportExcel')}</span>
+            <Download size={18} className="sm:w-5 sm:h-5" />
+            <span>{t('exportExcel')}</span>
           </button>
           <button 
             onClick={() => {
@@ -225,22 +225,22 @@ export default function ProductList() {
               setFormData({ name: '', code: '', price: 0, stock: 0 });
               setIsModalOpen(true);
             }}
-            className="premium-button-primary"
+            className="premium-button-primary p-2 sm:p-3"
           >
-            <Plus size={20} />
+            <Plus size={18} className="sm:w-5 sm:h-5" />
             <span>{t('addAsset')}</span>
           </button>
         </div>
       </header>
 
       <div className="premium-card">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/30">
           <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-xs sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -338,19 +338,19 @@ export default function ProductList() {
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-slate-50">
             {loading ? (
-              <div className="p-10 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Syncing...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 font-medium">Null Registry.</div>
+              <div className="p-8 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
             ) : filteredProducts.map((product) => (
-              <div key={product.id} className="p-6 space-y-6">
+              <div key={product.id} className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200">
-                      <Package size={20} />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200">
+                      <Package size={16} />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 tracking-tight">{product.name}</p>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{product.code}</p>
+                      <p className="font-bold text-slate-900 tracking-tight text-sm">{product.name}</p>
+                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{product.code}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -360,46 +360,34 @@ export default function ProductList() {
                         setFormData(product);
                         setIsModalOpen(true);
                       }}
-                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg transition-all"
                     >
-                      <Edit2 size={18} />
+                      <Edit2 size={14} />
                     </button>
                     <button 
                       onClick={() => handleDelete(product.id!)}
-                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                      className="w-8 h-8 flex items-center justify-center text-rose-300 bg-rose-50 rounded-lg transition-all"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-6 p-4 bg-slate-50/50 rounded-2xl border border-slate-50">
-                  <div>
-                    <label className="detail-label">Valuation</label>
-                    <span className="font-bold text-slate-900 tabular-nums">{formatCurrency(product.price)}</span>
+                <div className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-50">
+                  <div className="flex flex-col">
+                    <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Valuation</label>
+                    <span className="font-black text-slate-700 tabular-nums text-xs">{formatCurrency(product.price)}</span>
                   </div>
-                  <div className="text-right">
-                    <label className="detail-label">{t('stockLevel')}</label>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
-                        )} />
-                        <span className={cn(
-                          "font-bold tabular-nums",
-                          product.stock > 10 ? "text-slate-900" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
-                        )}>{product.stock} {t('items')}</span>
-                      </div>
-                      {product.stock <= 10 && (
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border",
-                          product.stock === 0 
-                            ? "bg-rose-50 text-rose-600 border-rose-100" 
-                            : "bg-amber-50 text-amber-600 border-amber-100"
-                        )}>
-                          {product.stock === 0 ? t('outOfStock') : t('lowStock')}
-                        </span>
-                      )}
+                  <div className="text-right flex flex-col items-end">
+                    <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">{t('stockLevel')}</label>
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn(
+                        "w-1.5 h-1.5 rounded-full",
+                        product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
+                      )} />
+                      <span className={cn(
+                        "font-black tabular-nums text-xs",
+                        product.stock > 10 ? "text-slate-900" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
+                      )}>{product.stock} {t('items')}</span>
                     </div>
                   </div>
                 </div>

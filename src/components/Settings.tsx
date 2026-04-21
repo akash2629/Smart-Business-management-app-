@@ -143,7 +143,7 @@ export default function Settings() {
         // Special cleanup for order items if any
         if (collName === 'orders') {
           for (const orderDoc of snapshot.docs) {
-            const itemsSnap = await getDocs(collection(orderDoc.ref, 'items'));
+            const itemsSnap = await getDocs(query(collection(orderDoc.ref, 'items'), where('ownerId', '==', user.uid)));
             if (!itemsSnap.empty) {
               const itemBatch = writeBatch(db);
               itemsSnap.docs.forEach(d => itemBatch.delete(d.ref));

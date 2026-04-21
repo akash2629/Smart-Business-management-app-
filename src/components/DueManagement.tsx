@@ -470,68 +470,68 @@ export default function DueManagement() {
   );
 
   return (
-    <div className="space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
+    <div className="space-y-6 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('dueRegistry')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('dueManagement')}</h1>
-          <p className="text-slate-500 font-medium tracking-tight">{t('trackOutstanding')}</p>
+          <h1 className="tracking-tighter">{t('dueManagement')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight text-xs sm:text-base hidden sm:block">{t('trackOutstanding')}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-4">
           <button 
             onClick={exportToPDF}
-            className="premium-button-secondary border-rose-100 text-rose-700 hover:bg-rose-50"
+            className="premium-button-secondary border-rose-100 text-rose-700 hover:bg-rose-50 p-2 sm:p-3"
           >
-            <FileText size={20} />
-            <span className="hidden sm:inline">{t('exportPDF')}</span>
+            <FileText size={16} className="sm:w-5 sm:h-5" />
+            <span className="sm:inline">{t('exportPDF')}</span>
           </button>
           <button 
             onClick={() => setIsManualModalOpen(true)}
-            className="premium-button-primary"
+            className="premium-button-primary p-2 sm:p-3 col-span-2 sm:col-auto"
           >
-            <Plus size={20} />
+            <Plus size={16} className="sm:w-5 sm:h-5" />
             <span>{t('manualEntry')}</span>
           </button>
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+            className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50 p-2 sm:p-3 col-span-2 sm:col-auto"
           >
-            <Download size={20} />
+            <Download size={16} className="sm:w-5 sm:h-5" />
             <span>{t('exportExcel')}</span>
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-        <div className="premium-card p-8 group">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
+        <div className="premium-card p-4 sm:p-8 group">
           <p className="detail-label">{t('due')}</p>
-          <h3 className="text-3xl font-bold text-rose-600 tracking-tight group-hover:scale-105 transition-transform duration-500">
+          <h3 className="text-xl sm:text-3xl font-bold text-rose-600 tracking-tight group-hover:scale-105 transition-transform duration-500 tabular-nums">
             {formatCurrency(dues.reduce((sum, d) => sum + d.remaining_balance, 0))}
           </h3>
         </div>
-        <div className="premium-card p-8">
+        <div className="premium-card p-4 sm:p-8">
           <p className="detail-label">{t('customers')}</p>
-          <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{dues.length} {t('clientNetwork')}</h3>
+          <h3 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">{dues.length} <span className="hidden sm:inline">{t('clientNetwork')}</span></h3>
         </div>
-        <div className="premium-card p-8 sm:col-span-2 lg:col-span-1">
+        <div className="premium-card p-4 sm:p-8 col-span-2 lg:col-span-1">
           <p className="detail-label">{t('averageRisk')}</p>
-          <h3 className="text-3xl font-bold text-amber-600 tracking-tight">
+          <h3 className="text-xl sm:text-3xl font-bold text-amber-600 tracking-tight tabular-nums">
             {formatCurrency(dues.length > 0 ? dues.reduce((sum, d) => sum + d.remaining_balance, 0) / dues.length : 0)}
           </h3>
         </div>
       </div>
 
       <div className="premium-card">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/30">
           <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-xs sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -636,41 +636,39 @@ export default function DueManagement() {
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-slate-50">
             {loading ? (
-              <div className="p-10 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Syncing...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
             ) : filteredDues.length === 0 ? (
-              <div className="p-10 text-center text-slate-400">Clear Ledger.</div>
+              <div className="p-8 text-center text-slate-400 text-xs">Clear Ledger.</div>
             ) : filteredDues.map((record) => (
-              <div key={record.id} className="p-6 space-y-6">
+              <div key={record.id} className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 font-black text-lg border border-amber-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-black text-base border border-amber-100">
                       {record.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <span className="font-bold text-slate-900 block tracking-tight">{record.name}</span>
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Client Identity</span>
+                      <span className="font-bold text-slate-900 block tracking-tight text-sm">{record.name}</span>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">Client Identity</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button 
                       onClick={() => viewCustomerXlsxPreview(record)}
-                      className="w-10 h-10 flex items-center justify-center text-emerald-500 bg-emerald-50 rounded-xl"
-                      title="Data Preview"
+                      className="w-8 h-8 flex items-center justify-center text-emerald-500 bg-emerald-50 rounded-lg"
                     >
-                      <Search size={18} />
+                      <Search size={14} />
                     </button>
                     <button 
                       onClick={() => exportCustomerDetailedPDF(record)}
-                      className="w-10 h-10 flex items-center justify-center text-rose-500 bg-rose-50 rounded-xl"
-                      title="PDF Audit"
+                      className="w-8 h-8 flex items-center justify-center text-rose-500 bg-rose-50 rounded-lg"
                     >
-                      <FileText size={18} />
+                      <FileText size={14} />
                     </button>
                     <button 
                       onClick={() => fetchHistory(record)}
-                      className="w-10 h-10 flex items-center justify-center text-slate-400 bg-slate-50 rounded-xl"
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg"
                     >
-                      <History size={18} />
+                      <History size={14} />
                     </button>
                     <button 
                       onClick={() => {
@@ -678,39 +676,39 @@ export default function DueManagement() {
                         setPaymentAmount(record.remaining_balance);
                         setIsModalOpen(true);
                       }}
-                      className="w-10 h-10 flex items-center justify-center text-white bg-slate-900 rounded-xl shadow-lg shadow-slate-200"
+                      className="w-8 h-8 flex items-center justify-center text-white bg-slate-900 rounded-lg shadow-lg"
                     >
-                      <Wallet size={18} />
+                      <Wallet size={14} />
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-6 p-4 bg-slate-50/50 rounded-2xl border border-slate-50">
+                <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50/50 rounded-xl border border-slate-50">
                   <div>
-                    <label className="detail-label">Total Billed</label>
-                    <p className="font-bold text-slate-900 tabular-nums">{formatCurrency(record.total_amount)}</p>
+                    <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Total Billed</label>
+                    <p className="font-black text-slate-700 tabular-nums text-xs">{formatCurrency(record.total_amount)}</p>
                   </div>
                   <div className="text-right">
-                    <label className="detail-label">Principal Paid</label>
-                    <p className="font-bold text-emerald-600 tabular-nums">{formatCurrency(record.total_paid)}</p>
+                    <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Principal Paid</label>
+                    <p className="font-black text-emerald-600 tabular-nums text-xs">{formatCurrency(record.total_paid)}</p>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <span>Collection Progress</span>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <span>Recovery Profile</span>
                     <span>{Math.round((record.total_paid / record.total_amount) * 100)}%</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-50">
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden border border-slate-50">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${(record.total_paid / record.total_amount) * 100}%` }}
                       transition={{ duration: 1, ease: "circOut" }}
-                      className="bg-emerald-500 h-full shadow-[0_0_12px_rgba(16,185,129,0.4)]" 
+                      className="bg-emerald-500 h-full shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
                     />
                   </div>
                 </div>
-                <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
-                  <label className="detail-label mb-0">Residual Balance</label>
-                  <span className="text-2xl font-black text-rose-600 tabular-nums">{formatCurrency(record.remaining_balance)}</span>
+                <div className="pt-2 border-t border-slate-50 flex justify-between items-center">
+                  <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0">Residual Balance</label>
+                  <span className="text-lg font-black text-rose-600 tabular-nums">{formatCurrency(record.remaining_balance)}</span>
                 </div>
               </div>
             ))}

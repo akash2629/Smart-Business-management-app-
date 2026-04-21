@@ -170,7 +170,7 @@ export default function OrderList() {
         orderRef = doc(db, 'orders', editingOrderId);
         // For updates, we delete existing items first and re-add them 
         // to simplify the "sync" of items list
-        const itemsSnap = await getDocs(collection(orderRef, 'items'));
+        const itemsSnap = await getDocs(query(collection(orderRef, 'items'), where('ownerId', '==', user.uid)));
         itemsSnap.docs.forEach(d => batch.delete(d.ref));
       } else {
         orderRef = doc(collection(db, 'orders'));
@@ -214,7 +214,7 @@ export default function OrderList() {
     setLoading(true);
     try {
       // Fetch items for this order
-      const itemsSnap = await getDocs(collection(db, 'orders', order.id!, 'items'));
+      const itemsSnap = await getDocs(query(collection(db, 'orders', order.id!, 'items'), where('ownerId', '==', user.uid)));
       const items = itemsSnap.docs.map(doc => doc.data() as any);
       
       setEditingOrderId(order.id!);
@@ -359,45 +359,45 @@ export default function OrderList() {
   );
 
   return (
-    <div className="space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
+    <div className="space-y-6 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('orderRegistry')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('orders')}</h1>
-          <p className="text-slate-500 font-medium tracking-tight">{t('manageSales')}</p>
+          <h1 className="tracking-tighter">{t('orders')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight text-xs sm:text-base hidden sm:block">{t('manageSales')}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-4">
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5"
+            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5 p-2 sm:p-3"
           >
-            <Download size={20} />
-            <span className="hidden sm:inline">{t('exportExcel')}</span>
+            <Download size={18} className="sm:w-5 sm:h-5" />
+            <span>{t('exportExcel')}</span>
           </button>
           <button 
             onClick={() => {
               resetOrderForm();
               setIsModalOpen(true);
             }}
-            className="premium-button-primary"
+            className="premium-button-primary p-2 sm:p-3"
           >
-            <Plus size={20} />
+            <Plus size={18} className="sm:w-5 sm:h-5" />
             <span>{t('newOrder')}</span>
           </button>
         </div>
       </header>
 
       <div className="premium-card">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/30">
           <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-xs sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -485,54 +485,54 @@ export default function OrderList() {
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-slate-50">
             {loading ? (
-              <div className="p-10 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Syncing...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 font-medium">Null Registry.</div>
+              <div className="p-8 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
             ) : filteredOrders.map((order) => (
-              <div key={order.id} className="p-6 space-y-6">
+              <div key={order.id} className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] font-black text-slate-300 uppercase tracking-widest">Ref: #{order.id?.slice(-6)}</span>
+                  <span className="font-mono text-[9px] font-black text-slate-300 uppercase tracking-widest">Ref: #{order.id?.slice(-6)}</span>
                   <span className={cn(
-                    "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border",
+                    "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
                     order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                   )}>
                     {order.status}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-lg border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-base border border-slate-200">
                       {order.customerName?.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 tracking-tight">{order.customerName}</p>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{formatDate(order.createdAt!).split(',')[0]}</p>
+                      <p className="font-bold text-slate-900 tracking-tight text-sm">{order.customerName}</p>
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">{formatDate(order.createdAt!).split(',')[0]}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button 
                       onClick={() => exportToPDF(order)}
-                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-xl"
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg"
                     >
-                      <Printer size={16} />
+                      <Printer size={14} />
                     </button>
                     <button 
                       onClick={() => handleEdit(order)}
-                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-xl"
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg"
                     >
-                      <Edit2 size={16} />
+                      <Edit2 size={14} />
                     </button>
                     <button 
                       onClick={() => handleDelete(order.id!)}
-                      className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-600 bg-slate-50 rounded-xl"
+                      className="w-8 h-8 flex items-center justify-center text-rose-300 bg-rose-50 rounded-lg"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Aggregated Valuation</p>
-                  <span className="text-xl font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</span>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                   <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Valuation</p>
+                  <span className="text-lg font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</span>
                 </div>
               </div>
             ))}
