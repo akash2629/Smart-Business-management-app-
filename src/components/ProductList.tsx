@@ -412,23 +412,23 @@ export default function ProductList() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col"
+              className="bg-white rounded-[1.5rem] sm:rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col mx-4"
             >
-              <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
-                    <Package size={28} />
+              <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
+                <div className="flex items-center gap-3 sm:gap-5">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
+                    <Package size={20} className="sm:w-7 sm:h-7" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{editingProduct ? t('edit') : t('newOrder')}</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{t('manualEntry')}</p>
+                    <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">{editingProduct ? t('edit') : t('newOrder')}</h3>
+                    <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">{t('manualEntry')}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
-                  <X size={24} />
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-2xl transition-all">
+                  <X size={20} className="sm:w-6 sm:h-6" />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} id="product-form" className="p-10 space-y-8 overflow-y-auto">
+              <form onSubmit={handleSubmit} id="product-form" className="p-4 sm:p-10 space-y-4 sm:space-y-8 overflow-y-auto">
                 <div className="space-y-6">
                   {/* Image Upload Section */}
                   <div className="space-y-4">
@@ -546,18 +546,18 @@ export default function ProductList() {
                   </div>
                 </div>
               </form>
-              <div className="p-10 border-t border-slate-50 bg-slate-50/30 flex gap-4 shrink-0">
+              <div className="p-4 sm:p-10 border-t border-slate-50 bg-slate-50/30 flex gap-2 sm:gap-4 shrink-0">
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-6 py-4 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-white transition-all"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white transition-all"
                 >
                   {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   form="product-form"
-                  className="flex-1 px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
+                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
                 >
                   {editingProduct ? t('save') : t('registerProduct')}
                 </button>

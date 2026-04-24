@@ -151,14 +151,14 @@ function Navigation() {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4">
+    <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-100 px-3 sm:px-6 py-2 sm:py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-10">
-          <Link to="/" className="flex items-center gap-3 text-brand-primary font-serif font-black text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-brand-primary text-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
-              <Store size={22} />
+        <div className="flex items-center gap-3 sm:gap-10">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 text-brand-primary font-serif font-black text-lg sm:text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-primary text-white rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
+              <Store size={18} className="sm:w-[22px] sm:h-[22px]" />
             </div>
-            <span className="hidden sm:inline">SmartShop</span>
+            <span className="inline">SmartShop</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -209,19 +209,19 @@ function Navigation() {
             </div>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button 
               onClick={() => logOut()}
-              className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+              className="p-1 px-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
               title={t('signOut')}
             >
-              <LogOut size={20} />
+              <LogOut size={16} className="sm:w-[20px] sm:h-[20px]" />
             </button>
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2.5 bg-brand-primary text-white rounded-xl shadow-lg shadow-brand-primary/20 transition-all hover:opacity-90"
+              className="lg:hidden p-2 bg-brand-primary text-white rounded-lg shadow-lg shadow-brand-primary/20 transition-all hover:opacity-90"
             >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
@@ -303,7 +303,7 @@ function AppContent() {
     <div className="flex flex-col min-h-screen bg-[#FDFCFB] font-sans text-slate-900">
       <Navigation />
       
-      <main className="flex-1 p-3 sm:p-6 lg:p-12 overflow-x-hidden">
+      <main className="flex-1 p-2 sm:p-6 lg:p-12 overflow-x-hidden">
         <div className="max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             <Routes>

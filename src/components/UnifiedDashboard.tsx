@@ -22,7 +22,8 @@ import {
   MapPin,
   X,
   Wallet,
-  RefreshCcw
+  RefreshCcw,
+  RotateCcw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -54,6 +55,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 function StatCard({ title, value, icon: Icon, color, trend }: { title: string, value: string | number, icon: any, color: string, trend?: string }) {
   return (
@@ -83,6 +85,7 @@ export default function UnifiedDashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { colors } = useTheme();
+  const navigate = useNavigate();
   
   // Dashboard Metrics State
   const [data, setData] = useState<DashboardData | null>(null);
@@ -242,29 +245,36 @@ export default function UnifiedDashboard() {
   ] : [];
 
   return (
-    <div className="space-y-6 sm:space-y-10 max-w-[1600px] mx-auto pb-10 sm:pb-20 px-3 sm:px-0">
+    <div className="space-y-3 sm:space-y-10 max-w-[1600px] mx-auto pb-4 sm:pb-20 px-2 sm:px-0">
       {/* Header Section */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] sm:tracking-[0.4em]">
-            <div className="w-4 sm:w-6 h-[2px] bg-brand-primary"></div>
+      <header className="flex flex-row items-center justify-between gap-2 sm:gap-6">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5 sm:gap-3 text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
+            <div className="w-3 sm:w-6 h-[1.5px] bg-brand-primary"></div>
             Management Terminal
           </div>
-          <h1 className="text-2xl sm:text-4xl font-serif font-black text-slate-900 tracking-tighter">Unified Command</h1>
+          <h1 className="text-sm sm:text-4xl font-serif font-black text-slate-900 tracking-tighter leading-none">Unified Command</h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Real-Time Intelligence & Operations</p>
         </div>
-        <div className="flex items-center gap-2">
-           <div className="px-3 sm:px-5 py-2 sm:py-3 bg-white border border-slate-100 rounded-2xl sm:rounded-3xl shadow-sm flex items-center gap-2 sm:gap-3">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-ping"></div>
-              <span className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Sync</span>
+        <div className="flex items-center gap-1.5 sm:gap-4">
+           <button 
+             onClick={() => navigate('/settings')}
+             className="flex items-center justify-center p-1.5 sm:p-3 bg-white border border-rose-100 rounded-lg sm:rounded-2xl text-rose-600 hover:bg-rose-50 transition-all shadow-sm"
+             title="System Restart"
+           >
+             <RotateCcw size={14} className="sm:w-[20px] sm:h-[20px]" />
+           </button>
+           <div className="px-1.5 sm:px-5 py-1 sm:py-3 bg-white border border-slate-100 rounded-lg sm:rounded-3xl shadow-sm flex items-center gap-1 sm:gap-3">
+              <div className="w-1 h-1 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-ping"></div>
+              <span className="text-[6px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Sync</span>
            </div>
         </div>
       </header>
 
       {/* KPI Section */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
         {loadingMetrics ? (
-          Array(4).fill(0).map((_, i) => <div key={i} className="h-20 sm:h-24 bg-slate-50 rounded-2xl sm:rounded-3xl animate-pulse" />)
+          Array(4).fill(0).map((_, i) => <div key={i} className="h-14 sm:h-24 bg-slate-50 rounded-xl sm:rounded-3xl animate-pulse" />)
         ) : (
           <>
             <StatCard title={t('todaySales')} value={formatCurrency(data?.todaySales || 0)} icon={TrendingUp} color="bg-brand-primary" />
@@ -275,40 +285,40 @@ export default function UnifiedDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 sm:gap-10">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 sm:gap-10">
         
         {/* Left Column: Operation Zone */}
-        <div className="xl:col-span-8 space-y-6 sm:space-y-10">
+        <div className="xl:col-span-8 space-y-3 sm:space-y-10">
           
           {/* New Order Form (Directly on Page) */}
           <section className="premium-card overflow-hidden">
-            <div className="p-4 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
-                  <ShoppingCart size={18} />
+            <div className="p-3 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-row items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-slate-900 text-white rounded-lg sm:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
+                  <ShoppingCart size={14} className="sm:w-[18px] sm:h-[18px]" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Invoice Node</h2>
-                  <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">Direct Market Emission</p>
+                  <h2 className="text-sm sm:text-xl font-bold text-slate-900 tracking-tight">Invoice Node</h2>
+                  <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">Market Emission</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                 <button onClick={() => setIsCustomerModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
-                    <Users size={12} /> {t('addCustomer')}
+              <div className="flex gap-1 sm:gap-2">
+                 <button onClick={() => setIsCustomerModalOpen(true)} className="flex items-center justify-center gap-1.5 px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
+                    <Users size={10} className="sm:w-[12px] sm:h-[12px]" /> {t('addCustomer').split(' ')[0]}
                  </button>
-                 <button onClick={() => setIsQuickProductModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
-                    <Package size={12} /> + Asset
+                 <button onClick={() => setIsQuickProductModalOpen(true)} className="flex items-center justify-center gap-1.5 px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
+                    <Package size={10} className="sm:w-[12px] sm:h-[12px]" /> + Asset
                  </button>
               </div>
             </div>
             
-            <form onSubmit={handleOrderSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            <form onSubmit={handleOrderSubmit} className="p-3 sm:p-8 space-y-4 sm:space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
                 <div className="md:col-span-2">
-                  <label className="detail-label text-[9px]">Recipient Profile</label>
+                  <label className="detail-label text-[7px] sm:text-[9px]">Recipient Profile</label>
                   <select 
                     required
-                    className="w-full px-4 sm:px-5 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-bold text-slate-700 transition-all text-xs sm:text-base"
+                    className="w-full px-3 sm:px-5 py-2 sm:py-3.5 rounded-lg sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-bold text-slate-700 transition-all text-[10px] sm:text-base h-9 sm:h-auto"
                     value={orderForm.customerId}
                     onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
                   >
@@ -317,54 +327,54 @@ export default function UnifiedDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="detail-label text-[9px]">Document Class</label>
-                  <div className="flex gap-2">
+                  <label className="detail-label text-[7px] sm:text-[9px]">Document Class</label>
+                  <div className="flex gap-1.5">
                     {['Invoice', 'Quotation'].map(type => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => setOrderForm({...orderForm, type: type as any})}
                         className={cn(
-                          "flex-1 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest border transition-all",
+                          "flex-1 py-1.5 sm:py-3.5 rounded-lg sm:rounded-2xl text-[7px] sm:text-[9px] font-black uppercase tracking-widest border transition-all h-9 sm:h-auto",
                           orderForm.type === type ? "bg-slate-900 border-slate-900 text-white shadow-xl" : "bg-white border-slate-100 text-slate-400"
                         )}
                       >
-                        {type}
+                        {type === 'Quotation' ? 'Quote' : type}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                    <Layers size={12} className="text-slate-300" /> Registry Items
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between mb-1 sm:mb-2">
+                  <h3 className="text-[8px] sm:text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5 sm:gap-2">
+                    <Layers size={10} className="sm:w-[12px] sm:h-[12px] text-slate-300" /> Registry Items
                   </h3>
-                  <button type="button" onClick={addItem} className="text-[8px] sm:text-[10px] font-black text-brand-primary border-b border-brand-primary/20 hover:border-brand-primary pb-0.5 tracking-widest uppercase">
+                  <button type="button" onClick={addItem} className="text-[7px] sm:text-[10px] font-black text-brand-primary border-b border-brand-primary/20 hover:border-brand-primary pb-0.5 tracking-widest uppercase">
                     Add Entry +
                   </button>
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {orderForm.items.map((item, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center bg-slate-50/30 p-3 sm:p-4 rounded-xl sm:rounded-[1.5rem] border border-slate-50 group hover:border-slate-100 transition-colors">
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 sm:gap-4 items-center bg-slate-50/30 p-2 sm:p-4 rounded-lg sm:rounded-[1.5rem] border border-slate-50 group hover:border-slate-100 transition-colors">
                       <div className="md:col-span-6">
                         <select
                           required
-                          className="w-full px-3 py-2 rounded-lg border border-slate-100 bg-white focus:border-brand-primary outline-none font-bold text-slate-700 text-[11px] sm:text-sm"
+                          className="w-full px-2 py-1.5 rounded-lg border border-slate-100 bg-white focus:border-brand-primary outline-none font-bold text-slate-700 text-[10px] sm:text-sm h-8 sm:h-auto"
                           value={item.productId}
                           onChange={(e) => updateItem(index, 'productId', e.target.value)}
                         >
-                          <option value="">Select Asset</option>
+                          <option value="">Asset Name</option>
                           {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
-                      <div className="grid grid-cols-2 md:col-span-4 gap-3">
+                      <div className="grid grid-cols-2 md:col-span-4 gap-2">
                         <div className="relative">
                           <input
                             type="number"
-                            className="w-full pl-2 pr-2 py-2 rounded-lg border border-slate-100 bg-white outline-none font-bold text-slate-900 text-[11px] sm:text-sm tabular-nums text-center"
+                            className="w-full pl-1 pr-1 py-1.5 rounded-lg border border-slate-100 bg-white outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums text-center h-8 sm:h-auto"
                             value={item.price}
                             onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
                           />
@@ -372,15 +382,15 @@ export default function UnifiedDashboard() {
                         <div className="relative">
                           <input
                             type="number"
-                            className="w-full pl-2 pr-2 py-2 rounded-lg border border-slate-100 bg-white outline-none font-bold text-slate-900 text-[11px] sm:text-sm tabular-nums text-center"
+                            className="w-full pl-1 pr-1 py-1.5 rounded-lg border border-slate-100 bg-white outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums text-center h-8 sm:h-auto"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                           />
                         </div>
                       </div>
                       <div className="md:col-span-2 flex justify-end">
-                        <button type="button" onClick={() => removeItem(index)} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 transition-all">
-                          <Trash2 size={14} />
+                        <button type="button" onClick={() => removeItem(index)} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-rose-600 transition-all">
+                          <Trash2 size={12} className="sm:w-[14px] sm:h-[14px]" />
                         </button>
                       </div>
                     </div>
@@ -388,84 +398,83 @@ export default function UnifiedDashboard() {
                 </div>
               </div>
 
-              <div className="bg-slate-900 rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8 shadow-2xl relative overflow-hidden">
-                <div className="flex flex-col items-center sm:items-start">
-                   <p className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1">Total Valuation</p>
-                   <h3 className="text-2xl sm:text-4xl font-black tracking-tighter tabular-nums text-brand-accent">{formatCurrency(calculateTotal())}</h3>
+              <div className="bg-slate-900 rounded-xl sm:rounded-[2.5rem] p-4 sm:p-8 text-white flex flex-row items-center justify-between gap-2 sm:gap-8 shadow-2xl relative overflow-hidden">
+                <div className="flex flex-col items-start min-w-[80px]">
+                   <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-0.5 sm:mb-1">Total Valuation</p>
+                   <h3 className="text-lg sm:text-4xl font-black tracking-tighter tabular-nums text-brand-accent truncate max-w-full leading-none">{formatCurrency(calculateTotal())}</h3>
                 </div>
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                   <div className="flex-1 md:w-40">
+                <div className="flex items-center gap-2 flex-1 justify-end">
+                   <div className="w-20 sm:w-40">
                       <input 
                         type="number"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xl font-black outline-none focus:border-brand-accent transition-all tabular-nums text-center"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg sm:rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-lg sm:text-xl font-black outline-none focus:border-brand-accent transition-all tabular-nums text-center h-10 sm:h-auto"
                         value={orderForm.paidAmount}
                         onChange={(e) => setOrderForm({...orderForm, paidAmount: parseFloat(e.target.value) || 0})}
                       />
                    </div>
-                   <button type="submit" className="px-6 py-4 bg-brand-accent text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/20">
+                   <button type="submit" className="px-3 sm:px-6 py-2 sm:py-4 bg-brand-accent text-slate-900 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest sm:tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/20 h-10 sm:h-auto">
                       Commit
                    </button>
                 </div>
                 {/* Visual decoration for compact mobile view */}
-                <div className="absolute top-0 right-0 w-20 h-20 bg-brand-accent/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute top-0 right-0 w-10 sm:w-20 h-10 sm:h-20 bg-brand-accent/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
               </div>
             </form>
           </section>
 
           {/* Financial Reports Node */}
-          <section className="premium-card p-4 sm:p-8">
-            <div className="flex items-center justify-between mb-4 sm:mb-8">
+          <section className="premium-card p-3 sm:p-8">
+            <div className="flex items-center justify-between mb-3 sm:mb-8">
               <div>
-                <h3 className="text-base sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Intelligence</h3>
-                <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Aggregate Reports</p>
+                <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Intelligence</h3>
+                <p className="text-[7px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Aggregate Reports</p>
               </div>
               <button 
                 onClick={() => {
                   toast.success('Generating Intelligence Report...');
-                  // Logic for quick report export
                 }}
-                className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all"
+                className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-slate-900 text-white rounded-lg sm:rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all"
               >
-                <Download size={18} />
+                <Download size={14} className="sm:w-[18px] sm:h-[18px]" />
               </button>
             </div>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-50 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
-                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
-                       <FileText size={14} />
+            <div className="space-y-2 sm:space-y-4">
+              <div className="flex items-center justify-between p-2.5 sm:p-4 bg-slate-50 rounded-lg sm:rounded-2xl border border-slate-50 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
+                 <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                       <FileText size={12} className="sm:w-[14px] sm:h-[14px]" />
                     </div>
-                    <span className="text-xs font-bold text-slate-700">Daily Revenue Summary</span>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-700">Daily Revenue Summary</span>
                  </div>
-                 <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                 <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-1 transition-transform sm:w-[14px] sm:h-[14px]" />
               </div>
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-50 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
-                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
-                       <Users size={14} />
+              <div className="flex items-center justify-between p-2.5 sm:p-4 bg-slate-50 rounded-lg sm:rounded-2xl border border-slate-50 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
+                 <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                       <Users size={12} className="sm:w-[14px] sm:h-[14px]" />
                     </div>
-                    <span className="text-xs font-bold text-slate-700">Customer Credit Report</span>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-700">Customer Credit Report</span>
                  </div>
-                 <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                 <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-1 transition-transform sm:w-[14px] sm:h-[14px]" />
               </div>
             </div>
           </section>
 
           {/* Sales Trends Chart */}
-          <section className="premium-card p-4 sm:p-8">
-            <div className="mb-6 sm:mb-10">
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Performance</h3>
-              <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenue Allocation</p>
+          <section className="premium-card p-3 sm:p-8">
+            <div className="mb-4 sm:mb-10">
+              <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Performance</h3>
+              <p className="text-[7px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenue Allocation</p>
             </div>
-            <div className="h-48 sm:h-80">
+            <div className="h-40 sm:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="8 8" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} dx={-10} />
-                  <Tooltip cursor={{ fill: '#f8fafc', radius: 12 }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 40px -10px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" radius={[8, 8, 8, 8]} barSize={50}>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} dy={5} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 8, fontWeight: 700 }} dx={-5} />
+                  <Tooltip cursor={{ fill: '#f8fafc', radius: 10 }} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px -5px rgba(0,0,0,0.1)', fontSize: '10px' }} />
+                  <Bar dataKey="value" radius={[4, 4, 4, 4]} barSize={30}>
                     {chartData.map((e, index) => <Cell key={index} fill={e.color} />)}
                   </Bar>
                 </BarChart>
@@ -475,76 +484,76 @@ export default function UnifiedDashboard() {
         </div>
 
         {/* Right Column: Intelligent Overview & Reports */}
-        <div className="xl:col-span-4 space-y-6 sm:space-y-10">
+        <div className="xl:col-span-4 space-y-3 sm:space-y-10">
           
           {/* Intelligence Reports */}
-          <section className="premium-card p-4 sm:p-8 flex flex-col h-full">
-            <div className="mb-4 sm:mb-8">
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1">Operation Journal</h3>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">Recent Activity</p>
+          <section className="premium-card p-3 sm:p-8 flex flex-col h-full">
+            <div className="mb-3 sm:mb-8">
+              <h3 className="text-sm sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1">Journal</h3>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest text-wrap">Recent Interaction</p>
             </div>
-            <div className="space-y-3 sm:space-y-4 flex-1">
+            <div className="space-y-2 sm:space-y-4 flex-1">
               {recentOrders.map((o) => (
-                <div key={o.id} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/50 border border-slate-50 flex items-center justify-between hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all group">
-                   <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500">
-                         <FileText size={14} className="sm:w-[18px] sm:h-[18px]" />
+                <div key={o.id} className="p-2 sm:p-4 rounded-lg sm:rounded-2xl bg-slate-50/50 border border-slate-50 flex items-center justify-between hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all group">
+                   <div className="flex items-center gap-2 sm:gap-4">
+                      <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-md sm:rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500">
+                         <FileText size={12} className="sm:w-[18px] sm:h-[18px]" />
                       </div>
-                      <div>
-                         <p className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">{o.customerName}</p>
-                         <p className="text-[8px] sm:text-[10px] font-medium text-slate-400 uppercase">Ref: #{o.id?.slice(-6)}</p>
+                      <div className="min-w-0">
+                         <p className="text-[10px] sm:text-sm font-bold text-slate-900 tracking-tight truncate max-w-[80px] sm:max-w-none">{o.customerName}</p>
+                         <p className="text-[6px] sm:text-[10px] font-medium text-slate-400 uppercase tabular-nums">#{o.id?.slice(-4)}</p>
                       </div>
                    </div>
                    <div className="text-right">
-                      <p className="text-xs sm:text-sm font-black text-slate-900 tabular-nums">{formatCurrency(o.totalAmount)}</p>
-                      <p className={cn("text-[8px] sm:text-[9px] font-black uppercase tracking-widest", o.status === 'Paid' ? "text-emerald-500" : "text-amber-500")}>
+                      <p className="text-[10px] sm:text-sm font-black text-slate-900 tabular-nums">{formatCurrency(o.totalAmount)}</p>
+                      <p className={cn("text-[6px] sm:text-[9px] font-black uppercase tracking-widest", o.status === 'Paid' ? "text-emerald-500" : "text-amber-500")}>
                         {o.status}
                       </p>
                    </div>
                 </div>
               ))}
               {recentOrders.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20">
-                   <Clock size={40} className="mb-4" />
-                   <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Transactions</p>
+                <div className="h-full flex flex-col items-center justify-center text-slate-300 py-10">
+                   <Clock size={30} className="mb-2" />
+                   <p className="text-[8px] font-black uppercase tracking-widest">Awaiting Transactions</p>
                 </div>
               )}
             </div>
-            <div className="mt-8 pt-8 border-t border-slate-50">
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
-                     <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Conversion</p>
-                     <p className="text-xl font-black text-indigo-700">92%</p>
+            <div className="mt-4 sm:mt-8 pt-4 sm:pt-8 border-t border-slate-50">
+               <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  <div className="p-2 sm:p-4 rounded-xl sm:rounded-2xl bg-indigo-50/50 border border-indigo-100">
+                     <p className="text-[7px] sm:text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-0.5 sm:mb-1">Conv.</p>
+                     <p className="text-sm sm:text-xl font-black text-indigo-700">92%</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
-                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Efficiency</p>
-                     <p className="text-xl font-black text-emerald-700">High</p>
+                  <div className="p-2 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50/50 border border-emerald-100">
+                     <p className="text-[7px] sm:text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5 sm:mb-1">Eff.</p>
+                     <p className="text-sm sm:text-xl font-black text-emerald-700">Full</p>
                   </div>
                </div>
             </div>
           </section>
 
           {/* Quick Stats Grid */}
-          <section className="space-y-3 sm:space-y-4">
-             <div className="premium-card p-4 sm:p-6 border-l-4 border-emerald-500">
-                <div className="flex items-center justify-between">
+          <section className="grid grid-cols-2 xl:grid-cols-1 gap-2 sm:gap-4">
+             <div className="premium-card p-3 sm:p-6 border-l-4 border-emerald-500">
+                <div className="flex items-center justify-between gap-1">
                    <div>
-                      <p className="text-[8px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Capital Reserves</p>
-                      <h4 className="text-lg sm:text-xl font-black text-slate-900 tabular-nums">{formatCurrency(data?.paid || 0)}</h4>
+                      <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Reserves</p>
+                      <h4 className="text-[11px] sm:text-xl font-black text-slate-900 tabular-nums truncate max-w-[60px] sm:max-w-none">{formatCurrency(data?.paid || 0)}</h4>
                    </div>
-                   <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                      <Wallet size={16} className="sm:w-[20px] sm:h-[20px]" />
+                   <div className="w-6 h-6 sm:w-12 sm:h-12 rounded-md sm:rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Wallet size={12} className="sm:w-[20px] sm:h-[20px]" />
                    </div>
                 </div>
              </div>
-             <div className="premium-card p-4 sm:p-6 border-l-4 border-rose-500">
-                <div className="flex items-center justify-between">
+             <div className="premium-card p-3 sm:p-6 border-l-4 border-rose-500">
+                <div className="flex items-center justify-between gap-1">
                    <div>
-                      <p className="text-[8px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Risk Exposure</p>
-                      <h4 className="text-lg sm:text-xl font-black text-slate-900 tabular-nums">{formatCurrency(data?.due || 0)}</h4>
+                      <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Risk</p>
+                      <h4 className="text-[11px] sm:text-xl font-black text-slate-900 tabular-nums truncate max-w-[60px] sm:max-w-none">{formatCurrency(data?.due || 0)}</h4>
                    </div>
-                   <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-                      <RefreshCcw size={16} className="sm:w-[20px] sm:h-[20px]" />
+                   <div className="w-6 h-6 sm:w-12 sm:h-12 rounded-md sm:rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+                      <RefreshCcw size={12} className="sm:w-[20px] sm:h-[20px]" />
                    </div>
                 </div>
              </div>

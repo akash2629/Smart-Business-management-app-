@@ -18,6 +18,7 @@ export default function Settings() {
   const [step, setStep] = useState<'initial' | 'verification' | 'success'>('initial');
   const [loading, setLoading] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
+  const [adminKey, setAdminKey] = useState('');
   const [resetProgress, setResetProgress] = useState('');
 
   const colorPresets = [
@@ -99,6 +100,14 @@ export default function Settings() {
   const confirmReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid || verificationCode.length !== 6) return;
+    
+    // Check Administrative Key if configured
+    const requiredAdminKey = (import.meta as any).env.VITE_ADMIN_KEY;
+    if (requiredAdminKey && adminKey !== requiredAdminKey) {
+      toast.error('Invalid Administrative Key. Authorization denied.');
+      return;
+    }
+
     setLoading(true);
     setResetProgress('Verifying security key...');
 
@@ -134,26 +143,35 @@ export default function Settings() {
         }
 
         console.log(`Destroying ${snapshot.size} records in ${collName}...`);
-        const batch = writeBatch(db);
-        snapshot.docs.forEach((doc) => {
-          batch.delete(doc.ref);
-        });
-        await batch.commit();
+        
+        // CHUNKED BATCH DELETE (Firestore limit is 500)
+        const docs = snapshot.docs;
+        for (let i = 0; i < docs.length; i += 500) {
+          const chunk = docs.slice(i, i + 500);
+          const batch = writeBatch(db);
+          chunk.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+          setResetProgress(`Purged ${Math.min(i + 500, docs.length)}/${docs.length} in ${collName}...`);
+        }
         
         // Special cleanup for order items if any
         if (collName === 'orders') {
-          for (const orderDoc of snapshot.docs) {
+          for (const orderDoc of docs) {
             const itemsSnap = await getDocs(query(collection(orderDoc.ref, 'items'), where('ownerId', '==', user.uid)));
             if (!itemsSnap.empty) {
-              const itemBatch = writeBatch(db);
-              itemsSnap.docs.forEach(d => itemBatch.delete(d.ref));
-              await itemBatch.commit();
+              const itemDocs = itemsSnap.docs;
+              for (let j = 0; j < itemDocs.length; j += 500) {
+                const itemChunk = itemDocs.slice(j, j + 500);
+                const itemBatch = writeBatch(db);
+                itemChunk.forEach(d => itemBatch.delete(d.ref));
+                await itemBatch.commit();
+              }
             }
           }
         }
       }
 
-      setResetProgress('Oblitertating metadata...');
+      setResetProgress('Obliterating metadata...');
       // 3. Clear user settings
       await deleteDoc(doc(db, 'user_settings', user.uid)).catch(() => {});
       
@@ -359,20 +377,40 @@ export default function Settings() {
               <p className="text-sm font-medium text-slate-500 leading-relaxed px-2">An encrypted 6-digit security code has been dispatched to <span className="font-bold text-slate-900">{user?.email}</span>. Enter it below to proceed.</p>
 
               <form onSubmit={confirmReset} className="space-y-8">
-                <div>
-                  <label className="detail-label">Security Key</label>
-                  <div className="relative">
-                    <Key size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <input 
-                      disabled={loading}
-                      required
-                      type="text" 
-                      maxLength={6}
-                      placeholder="000 000"
-                      className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-black text-2xl text-slate-900 transition-all font-mono tracking-[0.5em] text-center"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="detail-label">Security Key (Email)</label>
+                    <div className="relative">
+                      <Key size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <input 
+                        disabled={loading}
+                        required
+                        type="text" 
+                        maxLength={6}
+                        placeholder="000 000"
+                        className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-black text-2xl text-slate-900 transition-all font-mono tracking-[0.5em] text-center"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="detail-label">Administrative Key</label>
+                    <div className="relative">
+                      <ShieldAlert size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <input 
+                        disabled={loading}
+                        required
+                        type="password" 
+                        placeholder="••••••"
+                        className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-black text-2xl text-slate-900 transition-all text-center"
+                        value={adminKey}
+                        onChange={(e) => setAdminKey(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
                   </div>
                 </div>
 

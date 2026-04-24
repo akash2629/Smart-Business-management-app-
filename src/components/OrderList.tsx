@@ -485,54 +485,42 @@ export default function OrderList() {
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-slate-50">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
+              <div className="p-4 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
+              <div className="p-4 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
             ) : filteredOrders.map((order) => (
-              <div key={order.id} className="p-4 space-y-4">
+              <div key={order.id} className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[9px] font-black text-slate-300 uppercase tracking-widest">Ref: #{order.id?.slice(-6)}</span>
-                  <span className={cn(
-                    "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                    order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
-                  )}>
-                    {order.status}
-                  </span>
+                  <span className="font-mono text-[8px] font-black text-slate-300 uppercase tracking-widest">#{order.id?.slice(-4)}</span>
+                  <div className="flex items-center gap-1">
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border",
+                      order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                    )}>
+                      {order.status}
+                    </span>
+                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{order.type === 'Quotation' ? 'Quote' : order.type}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-black text-base border border-slate-200">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs border border-slate-200 shrink-0">
                       {order.customerName?.charAt(0)}
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-900 tracking-tight text-sm">{order.customerName}</p>
-                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">{formatDate(order.createdAt!).split(',')[0]}</p>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 tracking-tight text-[11px] truncate">{order.customerName}</p>
+                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5">{formatDate(order.createdAt!).split(',')[0]}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => exportToPDF(order)}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg"
-                    >
-                      <Printer size={14} />
-                    </button>
-                    <button 
-                      onClick={() => handleEdit(order)}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(order.id!)}
-                      className="w-8 h-8 flex items-center justify-center text-rose-300 bg-rose-50 rounded-lg"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button onClick={() => exportToPDF(order)} className="w-7 h-7 flex items-center justify-center text-slate-400 bg-slate-50 rounded-md"><Printer size={12} /></button>
+                    <button onClick={() => handleEdit(order)} className="w-7 h-7 flex items-center justify-center text-slate-400 bg-slate-50 rounded-md"><Edit2 size={12} /></button>
+                    <button onClick={() => handleDelete(order.id!)} className="w-7 h-7 flex items-center justify-center text-rose-300 bg-rose-50 rounded-md"><Trash2 size={12} /></button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                   <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Valuation</p>
-                  <span className="text-lg font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</span>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">Valuation</p>
+                  <span className="text-sm font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</span>
                 </div>
               </div>
             ))}
@@ -625,27 +613,27 @@ export default function OrderList() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
-          <div className="bg-white rounded-[3rem] w-full max-w-5xl shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
-                  <ShoppingCart size={28} />
+          <div className="bg-white rounded-[1.5rem] sm:rounded-[3rem] w-full max-w-5xl shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
+              <div className="flex items-center gap-3 sm:gap-6">
+                <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-[1rem] sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
+                  <ShoppingCart size={20} className="sm:w-7 sm:h-7" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">
+                  <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">
                     {editingOrderId ? t('edit') + ' ' + t('orders') : t('newOrder')}
                   </h3>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">
+                  <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">
                     {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : t('financialReports')}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
-                <X size={24} />
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-2xl transition-all">
+                <X size={20} className="sm:w-6 sm:h-6" />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-12">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-6 sm:space-y-12">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -789,17 +777,17 @@ export default function OrderList() {
               <div className="bg-slate-900 text-white p-10 md:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden group">
                 <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 items-center">
                   <div className="text-center sm:text-left">
-                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{t('total')}</p>
-                    <h2 className="text-5xl font-black tracking-tighter tabular-nums">{formatCurrency(calculateTotal())}</h2>
+                    <p className="text-white/40 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 sm:mb-2">{t('total')}</p>
+                    <h2 className="text-2xl sm:text-5xl font-black tracking-tighter tabular-nums">{formatCurrency(calculateTotal())}</h2>
                   </div>
                   <div>
-                    <label className="block text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-3">{t('paid')}</label>
+                    <label className="block text-white/40 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 sm:mb-3">{t('paid')}</label>
                     <div className="relative">
-                      <BdtSign size={24} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" />
+                      <BdtSign size={20} className="sm:w-6 sm:h-6 absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-white/20" />
                       <input
                         required
                         type="number"
-                        className="w-full pl-14 pr-6 py-5 rounded-3xl bg-white/5 border border-white/10 focus:ring-4 focus:ring-white/10 focus:border-white outline-none text-3xl font-black tabular-nums tracking-tighter transition-all"
+                        className="w-full pl-10 sm:pl-14 pr-4 sm:pr-6 py-2.5 sm:py-5 rounded-xl sm:rounded-3xl bg-white/5 border border-white/10 focus:ring-4 focus:ring-white/10 focus:border-white outline-none text-xl sm:text-3xl font-black tabular-nums tracking-tighter transition-all"
                         value={orderForm.paidAmount || 0}
                         onChange={(e) => setOrderForm({...orderForm, paidAmount: parseFloat(e.target.value) || 0})}
                       />
@@ -819,20 +807,20 @@ export default function OrderList() {
               </div>
             </form>
 
-            <div className="p-10 border-t border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row gap-4 shrink-0">
+            <div className="p-4 sm:p-10 border-t border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row gap-2 sm:gap-4 shrink-0">
               <button 
                 type="button"
                 onClick={() => {
                   setIsModalOpen(false);
                   resetOrderForm();
                 }}
-                className="flex-1 px-8 py-5 rounded-[2rem] border border-slate-100 text-slate-400 font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all"
+                className="flex-1 px-4 sm:px-8 py-3 sm:py-5 rounded-xl sm:rounded-[2rem] border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-white transition-all"
               >
                 {t('cancel')}
               </button>
               <button 
                 onClick={handleSubmit}
-                className="flex-[2] px-8 py-5 rounded-[2rem] bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
+                className="flex-[2] px-4 sm:px-8 py-3 sm:py-5 rounded-xl sm:rounded-[2rem] bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
               >
                 {editingOrderId ? t('save') : t('newOrder')}
               </button>

@@ -22,14 +22,14 @@
     @apply bg-[#FDFCFB] text-slate-900 antialiased selection:bg-brand-accent/20 selection:text-brand-accent;
   }
 
-  h1 { @apply text-2xl sm:text-5xl font-serif font-black tracking-tight; }
-  h2 { @apply text-xl sm:text-3xl font-serif font-black tracking-tight; }
-  h3 { @apply text-lg sm:text-2xl font-serif font-black tracking-tight; }
+  h1 { @apply text-xl sm:text-5xl font-serif font-black tracking-tight; }
+  h2 { @apply text-lg sm:text-3xl font-serif font-black tracking-tight; }
+  h3 { @apply text-base sm:text-2xl font-serif font-black tracking-tight; }
 }
 
 @layer components {
   .premium-card {
-    @apply bg-white border border-slate-100 rounded-2xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 overflow-hidden;
+    @apply bg-white border border-slate-100 rounded-xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 overflow-hidden;
   }
 
   .premium-button-primary {
