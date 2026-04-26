@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Eye, Trash2, ShoppingCart, User, Calendar, FileText, X, Printer, Download, Package, Phone, MapPin, Edit2, AlertCircle, Layers, Barcode } from 'lucide-react';
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'motion/react';
 import { Order, Customer, Product, OrderItem } from '../types';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
@@ -18,7 +19,8 @@ import {
   doc, 
   writeBatch,
   serverTimestamp,
-  orderBy
+  orderBy,
+  increment
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -50,7 +52,7 @@ export default function OrderList() {
     if (!quickProduct.name || !quickProduct.price) return toast.error('Name and Price are required');
 
     try {
-      const docRef = await addDoc(collection(db, 'products'), {
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'products'), {
         ...quickProduct,
         ownerId: user.uid
       });
@@ -58,8 +60,7 @@ export default function OrderList() {
       toast.success('Product registered successfully');
       
       // Refresh products
-      const productsQ = query(collection(db, 'products'), where('ownerId', '==', user.uid));
-      const productsSnap = await getDocs(productsQ);
+      const productsSnap = await getDocs(collection(db, 'users', user.uid, 'products'));
       const updatedProducts = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
       setProducts(updatedProducts);
       
@@ -118,9 +119,9 @@ export default function OrderList() {
     if (!user) return;
     setLoading(true);
     try {
-      const ordersQ = query(collection(db, 'orders'), where('ownerId', '==', user.uid), orderBy('createdAt', 'desc'));
-      const customersQ = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
-      const productsQ = query(collection(db, 'products'), where('ownerId', '==', user.uid));
+      const ordersQ = query(collection(db, 'users', user.uid, 'orders'), orderBy('createdAt', 'desc'));
+      const customersQ = collection(db, 'users', user.uid, 'customers');
+      const productsQ = collection(db, 'users', user.uid, 'products');
 
       const [ordersSnap, customersSnap, productsSnap] = await Promise.all([
         getDocs(ordersQ),
@@ -165,15 +166,16 @@ export default function OrderList() {
     try {
       const batch = writeBatch(db);
       let orderRef;
+      const ordersColRef = collection(db, 'users', user.uid, 'orders');
       
       if (editingOrderId) {
-        orderRef = doc(db, 'orders', editingOrderId);
+        orderRef = doc(ordersColRef, editingOrderId);
         // For updates, we delete existing items first and re-add them 
         // to simplify the "sync" of items list
-        const itemsSnap = await getDocs(query(collection(orderRef, 'items'), where('ownerId', '==', user.uid)));
+        const itemsSnap = await getDocs(collection(orderRef, 'items'));
         itemsSnap.docs.forEach(d => batch.delete(d.ref));
       } else {
-        orderRef = doc(collection(db, 'orders'));
+        orderRef = doc(ordersColRef);
       }
       
       const orderData = {
@@ -196,6 +198,13 @@ export default function OrderList() {
           ...item,
           ownerId: user.uid
         });
+
+        // Update Inventory Stock
+        if (item.productId && orderForm.type !== 'Quotation') {
+          const productRef = doc(db, 'users', user.uid, 'products', item.productId);
+          const stockChange = orderForm.type === 'Purchase' ? item.quantity : -item.quantity;
+          batch.update(productRef, { stock: increment(stockChange) });
+        }
       });
 
       await batch.commit();
@@ -213,8 +222,9 @@ export default function OrderList() {
   const handleEdit = async (order: Order) => {
     setLoading(true);
     try {
+      if (!user) return;
       // Fetch items for this order
-      const itemsSnap = await getDocs(query(collection(db, 'orders', order.id!, 'items'), where('ownerId', '==', user.uid)));
+      const itemsSnap = await getDocs(collection(db, 'users', user.uid, 'orders', order.id!, 'items'));
       const items = itemsSnap.docs.map(doc => doc.data() as any);
       
       setEditingOrderId(order.id!);
@@ -242,15 +252,40 @@ export default function OrderList() {
   };
 
   const confirmDelete = async () => {
-    if (!orderToDelete) return;
+    if (!orderToDelete || !user) return;
     try {
-      await deleteDoc(doc(db, 'orders', orderToDelete));
-      toast.success('Order deleted');
+      const orderRef = doc(db, 'users', user.uid, 'orders', orderToDelete);
+      const itemsSnap = await getDocs(collection(orderRef, 'items'));
+      
+      const batch = writeBatch(db);
+      
+      // Restore stock if it was a real sale/purchase
+      const orderDoc = orders.find(o => o.id === orderToDelete);
+      if (orderDoc && orderDoc.type !== 'Quotation') {
+        itemsSnap.docs.forEach(itemDoc => {
+          const item = itemDoc.data();
+          if (item.productId) {
+            const productRef = doc(db, 'users', user.uid, 'products', item.productId);
+            // Reverse the change: if it was a sale (-), we add (+). If it was a purchase (+), we subtract (-).
+            const stockRestoration = orderDoc.type === 'Purchase' ? -item.quantity : item.quantity;
+            batch.update(productRef, { stock: increment(stockRestoration) });
+          }
+          batch.delete(itemDoc.ref);
+        });
+      } else {
+        itemsSnap.docs.forEach(itemDoc => batch.delete(itemDoc.ref));
+      }
+
+      batch.delete(orderRef);
+      await batch.commit();
+      
+      toast.success('Order purged and stock adjusted');
       setIsDeleteModalOpen(false);
       setOrderToDelete(null);
       fetchData();
     } catch (error) {
-      toast.error('Delete failed');
+      console.error(error);
+      toast.error('Purge failed');
     }
   };
 
@@ -288,7 +323,7 @@ export default function OrderList() {
     if (!newCustomer.name) return toast.error('Name is required');
 
     try {
-      const docRef = await addDoc(collection(db, 'customers'), {
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'customers'), {
         ...newCustomer,
         ownerId: user.uid
       });
@@ -296,8 +331,7 @@ export default function OrderList() {
       toast.success('Customer added successfully');
       
       // Refresh customers list
-      const customersQ = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
-      const customersSnap = await getDocs(customersQ);
+      const customersSnap = await getDocs(collection(db, 'users', user.uid, 'customers'));
       const updatedCustomers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[];
       setCustomers(updatedCustomers);
       
@@ -359,22 +393,22 @@ export default function OrderList() {
   );
 
   return (
-    <div className="space-y-6 sm:space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+    <div className="space-y-0 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-0 z-40">
         <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('orderRegistry')}
           </div>
-          <h1 className="tracking-tighter">{t('orders')}</h1>
+          <h1 className="text-sm sm:text-5xl font-serif font-black tracking-tighter leading-tight">{t('orders')}</h1>
           <p className="text-slate-500 font-medium tracking-tight text-xs sm:text-base hidden sm:block">{t('manageSales')}</p>
         </div>
         <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-4">
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5 p-2 sm:p-3"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-brand-accent/20 text-brand-accent font-bold text-[10px] sm:text-base bg-white sm:bg-white hover:bg-brand-accent/5 transition-all shadow-sm"
           >
-            <Download size={18} className="sm:w-5 sm:h-5" />
+            <Download size={16} className="sm:w-5 sm:h-5" />
             <span>{t('exportExcel')}</span>
           </button>
           <button 
@@ -382,22 +416,22 @@ export default function OrderList() {
               resetOrderForm();
               setIsModalOpen(true);
             }}
-            className="premium-button-primary p-2 sm:p-3"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 font-bold text-white text-[10px] sm:text-base hover:opacity-90 transition-all shadow-lg active:scale-95"
           >
-            <Plus size={18} className="sm:w-5 sm:h-5" />
+            <Plus size={16} className="sm:w-5 sm:h-5" />
             <span>{t('newOrder')}</span>
           </button>
         </div>
       </header>
 
-      <div className="premium-card">
-        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/30">
+      <div className="bg-white sm:premium-card border-b border-slate-100 sm:border-none">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/20">
           <div className="relative max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-xs sm:text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-bold text-[10px] sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -482,45 +516,51 @@ export default function OrderList() {
             </tbody>
           </table>
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-slate-50">
+          {/* Mobile Detailed Flow (No Cards) */}
+          <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-4 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-4 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
             ) : filteredOrders.map((order) => (
-              <div key={order.id} className="p-3 space-y-2">
+              <div key={order.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[8px] font-black text-slate-300 uppercase tracking-widest">#{order.id?.slice(-4)}</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-xl shadow-slate-200">
+                      {order.customerName?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-900 text-[12px] tracking-tight">{order.customerName}</p>
+                      <sm className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">#{order.id?.slice(-6)} • {order.type === 'Quotation' ? 'Quote' : 'Invoice'}</sm>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[12px] font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</p>
                     <span className={cn(
-                      "px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border",
+                      "inline-block px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border mt-1",
                       order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                     )}>
                       {order.status}
                     </span>
-                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">{order.type === 'Quotation' ? 'Quote' : order.type}</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs border border-slate-200 shrink-0">
-                      {order.customerName?.charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 tracking-tight text-[11px] truncate">{order.customerName}</p>
-                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none mt-0.5">{formatDate(order.createdAt!).split(',')[0]}</p>
-                    </div>
+                
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Calendar size={12} className="text-slate-300" />
+                    <span className="text-[9px] font-bold text-slate-400">{formatDate(order.createdAt!)}</span>
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <button onClick={() => exportToPDF(order)} className="w-7 h-7 flex items-center justify-center text-slate-400 bg-slate-50 rounded-md"><Printer size={12} /></button>
-                    <button onClick={() => handleEdit(order)} className="w-7 h-7 flex items-center justify-center text-slate-400 bg-slate-50 rounded-md"><Edit2 size={12} /></button>
-                    <button onClick={() => handleDelete(order.id!)} className="w-7 h-7 flex items-center justify-center text-rose-300 bg-rose-50 rounded-md"><Trash2 size={12} /></button>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => exportToPDF(order)} className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100">
+                      <Printer size={14} />
+                    </button>
+                    <button onClick={() => handleEdit(order)} className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100">
+                      <Edit2 size={14} />
+                    </button>
+                    <button onClick={() => handleDelete(order.id!)} className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">Valuation</p>
-                  <span className="text-sm font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</span>
                 </div>
               </div>
             ))}
@@ -529,379 +569,369 @@ export default function OrderList() {
       </div>
 
       {/* New Customer Modal (Nested) */}
-      {isCustomerModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsCustomerModalOpen(false)} />
-          <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200">
-            <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
-                  <User size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{t('addCustomer')}</h3>
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">{t('manualEntry')}</p>
-                </div>
-              </div>
-              <button onClick={() => setIsCustomerModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleCustomerSubmit} className="p-10 space-y-6">
-              <div>
-                <label className="detail-label">{t('customer')}</label>
-                <div className="relative">
-                  <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input
-                    required
-                    type="text"
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
-                    placeholder={t('search')}
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="detail-label">{t('mobile')}</label>
-                <div className="relative">
-                  <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input
-                    type="text"
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
-                    placeholder={t('mobile')}
-                    value={newCustomer.phone}
-                    onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="detail-label">{t('address')}</label>
-                <div className="relative">
-                  <MapPin size={18} className="absolute left-4 top-5 text-slate-300" />
-                  <textarea
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 min-h-[80px]"
-                    placeholder={t('address')}
-                    value={newCustomer.address}
-                    onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button"
-                  onClick={() => setIsCustomerModalOpen(false)}
-                  className="flex-1 px-4 py-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
-                >
-                  {t('cancel')}
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-4 py-3 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
-                >
-                  {t('save')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Order Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
-          <div className="bg-white rounded-[1.5rem] sm:rounded-[3rem] w-full max-w-5xl shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
-              <div className="flex items-center gap-3 sm:gap-6">
-                <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-[1rem] sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
-                  <ShoppingCart size={20} className="sm:w-7 sm:h-7" />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">
-                    {editingOrderId ? t('edit') + ' ' + t('orders') : t('newOrder')}
-                  </h3>
-                  <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">
-                    {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : t('financialReports')}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-2xl transition-all">
-                <X size={20} className="sm:w-6 sm:h-6" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-6 sm:space-y-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="detail-label">{t('selectCustomer')}</label>
-                    <button 
-                      type="button"
-                      onClick={() => setIsCustomerModalOpen(true)}
-                      className="text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
-                    >
-                      <Plus size={10} />
-                      {t('addCustomer')}
-                    </button>
-                  </div>
-                  <select 
-                    required
-                    className="w-full px-5 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all cursor-pointer"
-                    value={orderForm.customerId}
-                    onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
-                  >
-                    <option value="">{t('selectCustomer')}</option>
-                    {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="detail-label">{t('paymentMethod')}</label>
-                  <div className="flex gap-3">
-                    {['Invoice', 'Quotation', 'Purchase'].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setOrderForm({...orderForm, type: type as any})}
-                        className={cn(
-                          "flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all",
-                          orderForm.type === type 
-                            ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-100" 
-                            : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
-                        )}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center justify-between bg-slate-50/50 p-6 rounded-[2rem] border border-slate-50">
-                  <h4 className="text-lg font-bold text-slate-900 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-slate-100 text-slate-400 shadow-sm">
-                      <Package size={20} />
-                    </div>
-                    {t('items')}
-                  </h4>
-                  <button 
-                    type="button"
-                    onClick={addItem}
-                    className="premium-button-secondary py-2 px-4 text-xs"
-                  >
-                    <Plus size={16} />
-                    <span>{t('addItems')}</span>
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {orderForm.items.map((item, index) => (
-                    <div key={index} className="premium-card p-6 md:p-8 bg-white hover:bg-slate-50/20 transition-all border-slate-50">
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
-                        <div className="md:col-span-5">
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="detail-label">{t('product')}</label>
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setIsQuickProductModalOpen(true);
-                              }}
-                              className="text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
-                            >
-                              <Plus size={10} />
-                              {t('newOrder')}
-                            </button>
-                          </div>
-                          <select
-                            required
-                            className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-sm"
-                            value={item.productId}
-                            onChange={(e) => updateItem(index, 'productId', e.target.value)}
-                          >
-                            <option value="">{t('selectProduct')}</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.name} ({t('stockLevel')}: {p.stock})</option>)}
-                          </select>
-                        </div>
-                        <div className="grid grid-cols-3 md:col-span-6 gap-4">
-                          <div>
-                            <label className="detail-label">{t('unitPrice')}</label>
-                            <input
-                              required
-                              type="number"
-                              className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-sm tabular-nums"
-                              value={item.price || 0}
-                              onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
-                            />
-                          </div>
-                          <div>
-                            <label className="detail-label">{t('quantity')}</label>
-                            <input
-                              required
-                              type="number"
-                              className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-sm tabular-nums"
-                              value={item.quantity || 0}
-                              onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                            />
-                          </div>
-                          <div>
-                            <label className="detail-label">{t('subtotal')}</label>
-                            <div className="px-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-black tabular-nums shadow-lg shadow-slate-100 truncate">
-                              {formatCurrency(item.price * item.quantity)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="md:col-span-1 flex justify-end">
-                          <button 
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {orderForm.items.length === 0 && (
-                    <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/30">
-                      <Package size={48} className="mx-auto mb-4 text-slate-200" />
-                      <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Null Assets Selected</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-slate-900 text-white p-10 md:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden group">
-                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 items-center">
-                  <div className="text-center sm:text-left">
-                    <p className="text-white/40 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 sm:mb-2">{t('total')}</p>
-                    <h2 className="text-2xl sm:text-5xl font-black tracking-tighter tabular-nums">{formatCurrency(calculateTotal())}</h2>
+      <AnimatePresence>
+        {isCustomerModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center sm:p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+              onClick={() => setIsCustomerModalOpen(false)} 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+              className="bg-white rounded-none sm:rounded-[3rem] w-full max-w-md h-full sm:h-auto sm:max-h-[90vh] shadow-2xl relative z-10 flex flex-col overflow-hidden"
+            >
+              <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-white sm:bg-slate-50/30 shrink-0">
+                <div className="flex items-center gap-3 sm:gap-5">
+                  <div className="w-10 h-10 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
+                    <User size={20} className="sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <label className="block text-white/40 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-1 sm:mb-3">{t('paid')}</label>
-                    <div className="relative">
-                      <BdtSign size={20} className="sm:w-6 sm:h-6 absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-white/20" />
-                      <input
-                        required
+                    <h3 className="text-sm sm:text-xl font-bold text-slate-900 tracking-tight">{t('addCustomer')}</h3>
+                    <p className="text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5 sm:mt-1">{t('manualEntry')}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsCustomerModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-xl transition-colors">
+                  <X size={18} className="sm:w-5 sm:h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleCustomerSubmit} className="p-4 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
+                <div>
+                  <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('customer')}</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                    <input
+                      required
+                      type="text"
+                      className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm h-11 sm:h-auto placeholder:font-normal placeholder:text-slate-300"
+                      placeholder="Search or Enter Name"
+                      value={newCustomer.name}
+                      onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('mobile')}</label>
+                  <div className="relative">
+                    <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                    <input
+                      type="text"
+                      className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm h-11 sm:h-auto placeholder:font-normal placeholder:text-slate-300"
+                      placeholder="+880..."
+                      value={newCustomer.phone}
+                      onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('address')}</label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-4 top-4 sm:top-5 text-slate-300" />
+                    <textarea
+                      className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm min-h-[80px] sm:min-h-[110px] placeholder:font-normal placeholder:text-slate-300"
+                      placeholder="Registry Address"
+                      value={newCustomer.address}
+                      onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4 shrink-0 sm:pb-0 pb-10">
+                  <button 
+                    type="button"
+                    onClick={() => setIsCustomerModalOpen(false)}
+                    className="flex-1 px-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 text-slate-400 font-black text-[9px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all h-12"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[9px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 h-12"
+                  >
+                    {t('save')}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+
+      {/* New Order Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white rounded-none sm:rounded-[3.5rem] w-full max-w-5xl h-full sm:h-auto sm:max-h-[90vh] shadow-2xl overflow-hidden relative z-10 flex flex-col">
+              <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-white sm:bg-slate-50/30 shrink-0">
+                <div className="flex items-center gap-3 sm:gap-6">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
+                    <ShoppingCart size={18} className="sm:w-7 sm:h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">
+                      {editingOrderId ? t('edit') + ' ' + t('orders') : t('newOrder')}
+                    </h3>
+                    <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">
+                      {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : t('financialReports')}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-2xl transition-all">
+                  <X size={18} className="sm:w-6 sm:h-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-4 sm:space-y-12 bg-white pb-32 sm:pb-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-10">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2 px-1">
+                      <label className="detail-label text-[9px] sm:text-[10px]">{t('selectCustomer')}</label>
+                      <button 
+                        type="button"
+                        onClick={() => setIsCustomerModalOpen(true)}
+                        className="text-[9px] sm:text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
+                      >
+                        <Plus size={10} />
+                        {t('addCustomer')}
+                      </button>
+                    </div>
+                    <select 
+                      required
+                      className="w-full px-4 sm:px-5 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all cursor-pointer text-[10px] sm:text-sm h-11 sm:h-auto"
+                      value={orderForm.customerId}
+                      onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
+                    >
+                      <option value="">{t('selectCustomer')}</option>
+                      {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="detail-label text-[9px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('paymentMethod')}</label>
+                    <div className="flex gap-2 sm:gap-3">
+                      {['Invoice', 'Quotation', 'Purchase'].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setOrderForm({...orderForm, type: type as any})}
+                          className={cn(
+                            "flex-1 py-1.5 sm:py-4 rounded-lg sm:rounded-2xl text-[7px] sm:text-[10px] font-black uppercase tracking-widest border transition-all h-10 sm:h-auto min-w-[60px]",
+                            orderForm.type === type 
+                              ? "bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-100" 
+                              : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
+                          )}
+                        >
+                          {type === 'Quotation' ? 'Quote' : type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex items-center justify-between bg-slate-50/50 p-3 sm:p-6 rounded-xl sm:rounded-[2rem] border border-slate-50 gap-2">
+                    <h4 className="text-[10px] sm:text-lg font-bold text-slate-900 flex items-center gap-2 sm:gap-3">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white flex items-center justify-center border border-slate-100 text-slate-400 shadow-sm">
+                        <Package size={14} className="sm:w-5 sm:h-5" />
+                      </div>
+                      {t('items')}
+                    </h4>
+                    <button 
+                      type="button"
+                      onClick={addItem}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg bg-white border border-slate-100 text-[8px] sm:text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                      <Plus size={14} className="sm:w-4 sm:h-4 text-brand-primary" />
+                      <span>{t('addItems')}</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {orderForm.items.map((item, index) => (
+                      <div key={index} className="bg-white sm:premium-card p-3 sm:p-8 rounded-xl sm:rounded-[2rem] border border-slate-100 sm:border-slate-100 relative group/item hover:bg-slate-50/20 transition-all">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-6 items-end">
+                          <div className="md:col-span-5">
+                            <div className="flex items-center justify-between mb-1 sm:mb-2">
+                              <label className="detail-label text-[8px] sm:text-[10px]">{t('product')}</label>
+                              <button 
+                                type="button"
+                                onClick={() => setIsQuickProductModalOpen(true)}
+                                className="text-[8px] sm:text-[9px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest sm:hidden"
+                              >
+                                <Plus size={8} />
+                                Asset
+                              </button>
+                            </div>
+                            <select
+                              required
+                              className="w-full px-3 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-[10px] sm:text-sm h-11 sm:h-auto"
+                              value={item.productId}
+                              onChange={(e) => updateItem(index, 'productId', e.target.value)}
+                            >
+                              <option value="">{t('selectProduct')}</option>
+                              {products.map(p => <option key={p.id} value={p.id}>{p.name} ({t('stockLevel')}: {p.stock})</option>)}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 min-[440px]:grid-cols-3 md:col-span-6 gap-2 sm:gap-4">
+                            <div>
+                              <label className="detail-label text-[8px] sm:text-[10px]">{t('unitPrice')}</label>
+                              <input
+                                required
+                                type="number"
+                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center sm:text-left"
+                                value={item.price || 0}
+                                onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div>
+                              <label className="detail-label text-[8px] sm:text-[10px]">{t('quantity')}</label>
+                              <input
+                                required
+                                type="number"
+                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center sm:text-left"
+                                value={item.quantity || 0}
+                                onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div className="col-span-2 min-[440px]:col-span-1">
+                              <label className="detail-label text-[8px] sm:text-[10px] sm:hidden">{t('subtotal')}</label>
+                              <div className="px-2 sm:px-4 py-2 sm:py-3.5 bg-slate-900 text-white rounded-lg text-[10px] sm:text-sm font-black tabular-nums shadow-lg shadow-slate-100 truncate flex items-center justify-center sm:justify-start h-11 sm:h-auto">
+                                {formatCurrency(item.price * item.quantity)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="md:col-span-1 flex justify-end">
+                            <button 
+                              type="button"
+                              onClick={() => removeItem(index)}
+                              className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg sm:rounded-xl transition-all border border-transparent hover:border-rose-100"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {orderForm.items.length === 0 && (
+                      <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/30">
+                        <Package size={48} className="mx-auto mb-4 text-slate-200" />
+                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Null Assets Selected</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sticky bottom-0 left-0 right-0 p-4 sm:p-0 bg-white sm:bg-transparent border-t border-slate-100 sm:border-none flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 sm:mt-12 bg-white/80 backdrop-blur-md sm:translate-y-0 translate-y-4">
+                  <div className="flex flex-col items-center sm:items-start">
+                    <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest sm:tracking-[0.2em] mb-0.5">{t('total')}</p>
+                    <h5 className="text-xl sm:text-4xl font-black text-brand-primary tracking-tighter tabular-nums leading-none">
+                      {formatCurrency(calculateTotal())}
+                    </h5>
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="flex-1 sm:w-40">
+                      <p className="text-[7px] sm:hidden font-black text-slate-300 uppercase tracking-widest mb-1 text-center">{t('paid')}</p>
+                      <input 
                         type="number"
-                        className="w-full pl-10 sm:pl-14 pr-4 sm:pr-6 py-2.5 sm:py-5 rounded-xl sm:rounded-3xl bg-white/5 border border-white/10 focus:ring-4 focus:ring-white/10 focus:border-white outline-none text-xl sm:text-3xl font-black tabular-nums tracking-tighter transition-all"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 sm:px-4 py-3 sm:py-4 text-base sm:text-xl font-black text-slate-900 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none transition-all tabular-nums text-center h-12 sm:h-auto"
                         value={orderForm.paidAmount || 0}
                         onChange={(e) => setOrderForm({...orderForm, paidAmount: parseFloat(e.target.value) || 0})}
                       />
                     </div>
-                  </div>
-                  <div className="text-center sm:text-right sm:col-span-2 lg:col-span-1">
-                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{t('due')}</p>
-                    <h2 className={cn(
-                      "text-3xl md:text-4xl font-black tabular-nums tracking-tight",
-                      calculateTotal() - orderForm.paidAmount > 0 ? "text-rose-400" : "text-emerald-400"
-                    )}>
-                      {formatCurrency(Math.max(0, calculateTotal() - orderForm.paidAmount))}
-                    </h2>
+                    <button 
+                      type="submit" 
+                      className="flex-[1.5] sm:flex-none px-6 sm:px-12 py-3 sm:py-4 bg-slate-900 text-white rounded-xl sm:rounded-[2rem] font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 h-12 sm:h-auto"
+                    >
+                      {editingOrderId ? t('save') : t('newOrder')}
+                    </button>
                   </div>
                 </div>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-all duration-1000" />
-              </div>
-            </form>
-
-            <div className="p-4 sm:p-10 border-t border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row gap-2 sm:gap-4 shrink-0">
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetOrderForm();
-                }}
-                className="flex-1 px-4 sm:px-8 py-3 sm:py-5 rounded-xl sm:rounded-[2rem] border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-white transition-all"
-              >
-                {t('cancel')}
-              </button>
-              <button 
-                onClick={handleSubmit}
-                className="flex-[2] px-4 sm:px-8 py-3 sm:py-5 rounded-xl sm:rounded-[2rem] bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
-              >
-                {editingOrderId ? t('save') : t('newOrder')}
-              </button>
-            </div>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
 
       {/* Quick Product Modal */}
       {isQuickProductModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsQuickProductModalOpen(false)} />
-          <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200">
-            <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
-                  <Package size={24} />
+          <div className="bg-white rounded-[2rem] sm:rounded-[3rem] w-full max-w-md shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-200">
+            <div className="p-6 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+              <div className="flex items-center gap-4 sm:gap-5">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
+                  <Package size={20} className="sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{t('registerProduct')}</h3>
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Quick Asset Entry</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">{t('registerProduct')}</h3>
+                  <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">{t('manualEntry')}</p>
                 </div>
               </div>
-              <button onClick={() => setIsQuickProductModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                <X size={20} />
+              <button onClick={() => setIsQuickProductModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-xl transition-colors">
+                <X size={18} className="sm:w-5 sm:h-5" />
               </button>
             </div>
             
-            <form onSubmit={handleQuickProductSubmit} className="p-10 space-y-6">
+            <form onSubmit={handleQuickProductSubmit} className="p-6 sm:p-10 space-y-4 sm:space-y-6">
               <div>
-                <label className="detail-label">{t('assetIdentifier')}</label>
+                <label className="detail-label text-[9px] sm:text-[10px] mb-1.5 sm:mb-2">{t('assetIdentifier')}</label>
                 <div className="relative">
-                  <Package size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <Package size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input
                     required
                     type="text"
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
+                    className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-sm h-11 sm:h-auto"
                     placeholder={t('assetIdentifier')}
                     value={quickProduct.name}
                     onChange={(e) => setQuickProduct({...quickProduct, name: e.target.value})}
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="detail-label">{t('unitValuation')}</label>
+                  <label className="detail-label text-[9px] sm:text-[10px] mb-1.5 sm:mb-2">{t('unitValuation')}</label>
                   <div className="relative">
-                    <BdtSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                    <BdtSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                     <input
                       required
                       type="number"
                       step="0.01"
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 tabular-nums"
+                      className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 tabular-nums text-sm h-11 sm:h-auto"
                       placeholder="0.00"
-                      value={quickProduct.price}
-                      onChange={(e) => setQuickProduct({...quickProduct, price: parseFloat(e.target.value)})}
+                      value={quickProduct.price || 0}
+                      onChange={(e) => setQuickProduct({...quickProduct, price: parseFloat(e.target.value) || 0})}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="detail-label">{t('stockLevel')}</label>
+                  <label className="detail-label text-[9px] sm:text-[10px] mb-1.5 sm:mb-2">{t('stockLevel')}</label>
                   <div className="relative">
-                   <Layers size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                   <Layers size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                     <input
                       required
                       type="number"
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 tabular-nums"
+                      className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 tabular-nums text-sm h-11 sm:h-auto"
                       placeholder="0"
-                      value={quickProduct.stock}
-                      onChange={(e) => setQuickProduct({...quickProduct, stock: parseInt(e.target.value)})}
+                      value={quickProduct.stock || 0}
+                      onChange={(e) => setQuickProduct({...quickProduct, stock: parseInt(e.target.value) || 0})}
                     />
                   </div>
                 </div>
               </div>
               <div>
-                <label className="detail-label">{t('registryCode')}</label>
+                <label className="detail-label text-[9px] sm:text-[10px] mb-1.5 sm:mb-2">{t('registryCode')}</label>
                 <div className="relative">
-                  <Barcode size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <Barcode size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input
                     type="text"
-                    className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700"
+                    className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-sm h-11 sm:h-auto"
                     placeholder="Code/SKU"
                     value={quickProduct.code}
                     onChange={(e) => setQuickProduct({...quickProduct, code: e.target.value})}
@@ -913,13 +943,13 @@ export default function OrderList() {
                 <button 
                   type="button"
                   onClick={() => setIsQuickProductModalOpen(false)}
-                  className="flex-1 px-4 py-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
+                  className="flex-1 px-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all h-12 sm:h-auto"
                 >
                   {t('cancel')}
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-4 py-3 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                  className="flex-1 px-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 h-12 sm:h-auto"
                 >
                   {t('save')}
                 </button>

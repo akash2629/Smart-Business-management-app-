@@ -99,31 +99,31 @@
     }
   },
   "firestore": {
-    "/shop_reset_sessions/{userId}": {
+    "/users/{userId}/reset_sessions/{sessionId}": {
       "schema": "ResetCode",
       "description": "Verification codes for data reset sessions"
     },
-    "/user_settings/{userId}": {
+    "/users/{userId}/settings/{settingId}": {
       "schema": "UserSettings",
       "description": "User specific settings and theme preferences"
     },
-    "/products/{productId}": {
+    "/users/{userId}/products/{productId}": {
       "schema": "Product",
       "description": "Main product collection"
     },
-    "/customers/{customerId}": {
+    "/users/{userId}/customers/{customerId}": {
       "schema": "Customer",
       "description": "Main customer collection"
     },
-    "/orders/{orderId}": {
+    "/users/{userId}/orders/{orderId}": {
       "schema": "Order",
       "description": "Main order collection"
     },
-    "/orders/{orderId}/items/{itemId}": {
+    "/users/{userId}/orders/{orderId}/items/{itemId}": {
       "schema": "OrderItem",
       "description": "Sub-collection for order items"
     },
-    "/payments/{paymentId}": {
+    "/users/{userId}/payments/{paymentId}": {
       "schema": "Payment",
       "description": "Main payment collection"
     }

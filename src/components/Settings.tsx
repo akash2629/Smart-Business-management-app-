@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { db } from '../lib/firebase';
 import { 
-  doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch, deleteDoc 
+  doc, setDoc, getDoc, getDocFromServer, collection, query, where, getDocs, writeBatch, deleteDoc 
 } from 'firebase/firestore';
 
 export default function Settings() {
@@ -20,6 +20,18 @@ export default function Settings() {
   const [verificationCode, setVerificationCode] = useState('');
   const [adminKey, setAdminKey] = useState('');
   const [resetProgress, setResetProgress] = useState('');
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showFinalConfirm && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showFinalConfirm, countdown]);
 
   const colorPresets = [
     { label: 'Slate (Default)', primary: '#0f172a', secondary: '#64748b', accent: '#10b981' },
@@ -56,7 +68,7 @@ export default function Settings() {
       const expiry = Date.now() + 15 * 60 * 1000; // 15 mins
 
       // Write to Firestore via CLIENT SDK (User has permission via updated rules)
-      await setDoc(doc(db, 'shop_reset_sessions', user.uid), {
+      await setDoc(doc(db, 'users', user.uid, 'reset_sessions', 'current'), {
         code,
         expiry,
         email: user.email
@@ -72,7 +84,10 @@ export default function Settings() {
       
       const result = await response.json();
       
-      if (result.message?.includes('logged to the server console')) {
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 10000 });
+        if (result.code) setVerificationCode(result.code);
+      } else if (result.message?.includes('logged to the server console')) {
         toast.info('API Key missing: The 6-digit code has been logged to the server logs and auto-populated for you.', { duration: 10000 });
         setVerificationCode(code);
       } else if (response.ok) {
@@ -80,7 +95,7 @@ export default function Settings() {
       } else {
         // Even if email fails, we have the code in the console or we can tell user
         console.warn('Email trigger failed, but session created:', result.error);
-        toast.warning('Email could not be sent, checking local session...');
+        toast.warning('Email could not be sent. Please check server logs for the code.');
         setVerificationCode(code); // Fallback to auto-fill since it's dev
       }
       
@@ -97,31 +112,41 @@ export default function Settings() {
     }
   };
 
-  const confirmReset = async (e: React.FormEvent) => {
+  const handleInitiateFinalReset = (e: React.FormEvent) => {
     e.preventDefault();
+    setCountdown(5);
+    setShowFinalConfirm(true);
+  };
+
+  const confirmReset = async () => {
     if (!user?.uid || verificationCode.length !== 6) return;
     
-    // Check Administrative Key if configured
-    const requiredAdminKey = (import.meta as any).env.VITE_ADMIN_KEY;
-    if (requiredAdminKey && adminKey !== requiredAdminKey) {
-      toast.error('Invalid Administrative Key. Authorization denied.');
-      return;
-    }
-
+    setShowFinalConfirm(false);
     setLoading(true);
     setResetProgress('Verifying security key...');
 
     try {
       // 1. Verify code on client side
-      const sessionRef = doc(db, 'shop_reset_sessions', user.uid);
-      const sessionSnap = await getDoc(sessionRef);
+      const sessionRef = doc(db, 'users', user.uid, 'reset_sessions', 'current');
+      
+      // Use getDocFromServer to ensure we are not hitting stale local cache
+      const sessionSnap = await getDocFromServer(sessionRef);
 
       if (!sessionSnap.exists()) {
-        throw new Error('Reset session not found. Please initiate a new request.');
+        console.error('Reset session not found in Firestore at:', sessionRef.path);
+        throw new Error('Reset session expired or not found. Please initiate a new request.');
       }
 
       const sessionData = sessionSnap.data();
-      if (sessionData.code !== verificationCode) {
+      const cleanInput = verificationCode.trim();
+      
+      console.log('Verification Debug:', {
+        entered: cleanInput,
+        stored: sessionData.code,
+        match: String(sessionData.code) === cleanInput
+      });
+
+      if (String(sessionData.code) !== cleanInput) {
         throw new Error('Invalid security key. Access denied.');
       }
 
@@ -134,8 +159,7 @@ export default function Settings() {
       
       for (const collName of collections) {
         setResetProgress(`Purging collection: ${collName}...`);
-        const q = query(collection(db, collName), where('ownerId', '==', user.uid));
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(collection(db, 'users', user.uid, collName));
         
         if (snapshot.empty) {
           console.log(`Collection ${collName} is already clear.`);
@@ -154,26 +178,26 @@ export default function Settings() {
           setResetProgress(`Purged ${Math.min(i + 500, docs.length)}/${docs.length} in ${collName}...`);
         }
         
-        // Special cleanup for order items if any
+        // Special cleanup for subcollections if any (like order items)
         if (collName === 'orders') {
           for (const orderDoc of docs) {
-            const itemsSnap = await getDocs(query(collection(orderDoc.ref, 'items'), where('ownerId', '==', user.uid)));
-            if (!itemsSnap.empty) {
-              const itemDocs = itemsSnap.docs;
-              for (let j = 0; j < itemDocs.length; j += 500) {
-                const itemChunk = itemDocs.slice(j, j + 500);
-                const itemBatch = writeBatch(db);
-                itemChunk.forEach(d => itemBatch.delete(d.ref));
-                await itemBatch.commit();
-              }
-            }
+             const itemsSnap = await getDocs(collection(db, 'users', user.uid, 'orders', orderDoc.id, 'items'));
+             if (!itemsSnap.empty) {
+               const itemDocs = itemsSnap.docs;
+               for (let j = 0; j < itemDocs.length; j += 500) {
+                 const itemChunk = itemDocs.slice(j, j + 500);
+                 const itemBatch = writeBatch(db);
+                 itemChunk.forEach(d => itemBatch.delete(d.ref));
+                 await itemBatch.commit();
+               }
+             }
           }
         }
       }
 
       setResetProgress('Obliterating metadata...');
       // 3. Clear user settings
-      await deleteDoc(doc(db, 'user_settings', user.uid)).catch(() => {});
+      await deleteDoc(doc(db, 'users', user.uid, 'settings', 'theme')).catch(() => {});
       
       // 4. Close the reset session
       await deleteDoc(sessionRef);
@@ -339,7 +363,7 @@ export default function Settings() {
                 </div>
                 <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
                   <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black">2</div>
-                  <span>Confirm with 6-digit administrative key</span>
+                  <span>Confirm deletion on next screen</span>
                 </div>
               </div>
 
@@ -376,8 +400,8 @@ export default function Settings() {
 
               <p className="text-sm font-medium text-slate-500 leading-relaxed px-2">An encrypted 6-digit security code has been dispatched to <span className="font-bold text-slate-900">{user?.email}</span>. Enter it below to proceed.</p>
 
-              <form onSubmit={confirmReset} className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <form onSubmit={handleInitiateFinalReset} className="space-y-8">
+                <div className="grid grid-cols-1 gap-6">
                   <div>
                     <label className="detail-label">Security Key (Email)</label>
                     <div className="relative">
@@ -391,23 +415,6 @@ export default function Settings() {
                         className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-black text-2xl text-slate-900 transition-all font-mono tracking-[0.5em] text-center"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                        autoComplete="off"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="detail-label">Administrative Key</label>
-                    <div className="relative">
-                      <ShieldAlert size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                      <input 
-                        disabled={loading}
-                        required
-                        type="password" 
-                        placeholder="••••••"
-                        className="w-full pl-14 pr-6 py-5 rounded-[2rem] border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-black text-2xl text-slate-900 transition-all text-center"
-                        value={adminKey}
-                        onChange={(e) => setAdminKey(e.target.value)}
                         autoComplete="off"
                       />
                     </div>
@@ -460,6 +467,73 @@ export default function Settings() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Final Confirmation Modal */}
+      <AnimatePresence>
+        {showFinalConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFinalConfirm(false)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] overflow-hidden relative z-10"
+            >
+              <div className="p-10 text-center space-y-8">
+                <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-rose-100">
+                  <AlertTriangle size={40} />
+                </div>
+                
+                <div className="space-y-3">
+                  <h3 className="text-3xl font-bold text-slate-900 tracking-tighter">Absolute Confirmation</h3>
+                  <p className="text-slate-500 font-medium leading-relaxed px-4">
+                    This is your <span className="font-bold text-rose-600 uppercase tracking-widest">Final Warning</span>. 
+                    The destruction of your data is imminent and cannot be reversed.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  <button
+                    disabled={countdown > 0}
+                    onClick={confirmReset}
+                    className={cn(
+                      "w-full py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] transition-all relative overflow-hidden group",
+                      countdown > 0 
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                        : "bg-rose-600 text-white hover:bg-rose-700 shadow-2xl shadow-rose-200"
+                    )}
+                  >
+                    <span className="relative z-10">
+                      {countdown > 0 ? `Wait ${countdown}s...` : 'Yes, Obliterate Everything'}
+                    </span>
+                    {countdown === 0 && (
+                      <motion.div 
+                        initial={{ x: "-100%" }}
+                        animate={{ x: "100%" }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 bg-white/20 skew-x-12 translate-x-1/2"
+                      />
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowFinalConfirm(false)}
+                    className="w-full py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-slate-900 transition-colors"
+                  >
+                    Abort Deletion
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   </div>
 </div>

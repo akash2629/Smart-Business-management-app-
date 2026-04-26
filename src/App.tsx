@@ -204,7 +204,8 @@ function Navigation() {
               </div>
               <div className="hidden md:block">
                 <p className="text-xs font-black text-slate-900 leading-none">{user.displayName || 'User'}</p>
-                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">{t('enterpriseAccess')}</p>
+                <p className="text-[8px] font-medium text-slate-400 mt-1 max-w-[120px] truncate">{user.email}</p>
+                <p className="text-[9px] font-black text-slate-500 mt-0.5 uppercase tracking-wider">{t('enterpriseAccess')}</p>
               </div>
             </div>
           )}
@@ -303,8 +304,8 @@ function AppContent() {
     <div className="flex flex-col min-h-screen bg-[#FDFCFB] font-sans text-slate-900">
       <Navigation />
       
-      <main className="flex-1 p-2 sm:p-6 lg:p-12 overflow-x-hidden">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 p-0 sm:p-6 lg:p-12 overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-0 sm:px-0">
           <AnimatePresence mode="wait">
             <Routes>
               <Route path="/" element={<PageTransition><UnifiedDashboard /></PageTransition>} />

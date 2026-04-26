@@ -27,11 +27,13 @@ export default function CustomerList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [selectedCustomerHistory, setSelectedCustomerHistory] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
+  const [customerPayments, setCustomerPayments] = useState<any[]>([]);
   const [formData, setFormData] = useState<Customer>({ name: '', phone: '', address: '' });
+  const [profileTab, setProfileTab] = useState<'orders' | 'payments'>('orders');
 
   useEffect(() => {
     if (user) {
@@ -43,8 +45,7 @@ export default function CustomerList() {
     if (!user) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'customers'), where('ownerId', '==', user.uid));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'customers'));
       const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -63,7 +64,7 @@ export default function CustomerList() {
 
     try {
       if (editingCustomer?.id) {
-        const customerRef = doc(db, 'customers', editingCustomer.id);
+        const customerRef = doc(db, 'users', user.uid, 'customers', editingCustomer.id);
         await updateDoc(customerRef, {
           name: formData.name,
           phone: formData.phone,
@@ -71,7 +72,7 @@ export default function CustomerList() {
         });
         toast.success('Customer updated');
       } else {
-        await addDoc(collection(db, 'customers'), {
+        await addDoc(collection(db, 'users', user.uid, 'customers'), {
           ...formData,
           ownerId: user.uid
         });
@@ -92,8 +93,8 @@ export default function CustomerList() {
     
     try {
       const [ordersSnap, paymentsSnap] = await Promise.all([
-        getDocs(query(collection(db, 'orders'), where('ownerId', '==', user.uid))),
-        getDocs(query(collection(db, 'payments'), where('ownerId', '==', user.uid)))
+        getDocs(collection(db, 'users', user.uid, 'orders')),
+        getDocs(collection(db, 'users', user.uid, 'payments'))
       ]);
 
       const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
@@ -151,9 +152,9 @@ export default function CustomerList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+    if (!confirm('Are you sure you want to delete this customer?') || !user) return;
     try {
-      await deleteDoc(doc(db, 'customers', id));
+      await deleteDoc(doc(db, 'users', user.uid, 'customers', id));
       toast.success('Customer deleted');
       fetchCustomers();
     } catch (error) {
@@ -166,56 +167,77 @@ export default function CustomerList() {
     c.phone.includes(search)
   );
 
-  const fetchPurchaseHistory = async (customer: Customer) => {
+  const viewProfile = async (customer: Customer) => {
     if (!user || !customer.id) return;
     setLoading(true);
-    setSelectedCustomerHistory(customer);
+    setSelectedCustomer(customer);
+    setProfileTab('orders');
     try {
-      const q = query(
-        collection(db, 'orders'), 
-        where('ownerId', '==', user.uid), 
-        where('customerId', '==', customer.id),
-        orderBy('createdAt', 'desc')
+      const ordersQ = query(
+        collection(db, 'users', user.uid, 'orders'), 
+        where('customerId', '==', customer.id)
       );
-      const querySnapshot = await getDocs(q);
-      const orders = await Promise.all(querySnapshot.docs.map(async (orderDoc) => {
+      const paymentsQ = query(
+        collection(db, 'users', user.uid, 'payments'),
+        where('customerId', '==', customer.id)
+      );
+
+      const [ordersSnap, paymentsSnap] = await Promise.all([
+        getDocs(ordersQ),
+        getDocs(paymentsQ)
+      ]);
+      
+      const orders = await Promise.all(ordersSnap.docs.map(async (orderDoc) => {
         const orderData = orderDoc.data();
-        const itemsSnap = await getDocs(query(collection(db, 'orders', orderDoc.id, 'items'), where('ownerId', '==', user.uid)));
+        const itemsSnap = await getDocs(collection(db, 'users', user.uid, 'orders', orderDoc.id, 'items'));
         const items = itemsSnap.docs.map(d => d.data());
         return {
           id: orderDoc.id,
           ...orderData,
           items,
-          createdAt: orderData.createdAt?.toDate?.()?.toISOString() || orderData.createdAt
+          createdAt: orderData.createdAt?.toDate?.() || orderData.createdAt
         };
       }));
-      setCustomerOrders(orders);
-      setIsHistoryModalOpen(true);
+
+      const payments = paymentsSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })).sort((a: any, b: any) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+
+      setCustomerOrders(orders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setCustomerPayments(payments);
+      setIsProfileOpen(true);
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to fetch purchase history');
+      console.error('Profile Fetch Error:', error);
+      toast.error('Failed to fetch profile details');
     } finally {
       setLoading(false);
     }
   };
 
+  const calculateTotalDue = () => {
+    const totalOrdered = customerOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalPaid = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    return totalOrdered - totalPaid;
+  };
+
   return (
-    <div className="space-y-6 sm:space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+    <div className="space-y-0 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-0 z-40">
         <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('clientNetwork')}
           </div>
-          <h1 className="tracking-tighter">{t('customers')}</h1>
+          <h1 className="text-sm sm:text-5xl font-serif font-black tracking-tighter leading-tight">{t('customers')}</h1>
           <p className="text-slate-500 font-medium tracking-tight text-xs sm:text-base hidden sm:block">{t('manageRelationships')}</p>
         </div>
         <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-4">
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5 p-2 sm:p-3"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-brand-accent/20 text-brand-accent font-bold text-[10px] sm:text-base bg-white sm:bg-white hover:bg-brand-accent/5 transition-all shadow-sm"
           >
-            <Download size={18} className="sm:w-5 sm:h-5" />
+            <Download size={16} className="sm:w-5 sm:h-5" />
             <span>{t('exportExcel')}</span>
           </button>
           <button 
@@ -224,22 +246,22 @@ export default function CustomerList() {
               setFormData({ name: '', phone: '', address: '' });
               setIsModalOpen(true);
             }}
-            className="premium-button-primary p-2 sm:p-3"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 font-bold text-white text-[10px] sm:text-base hover:opacity-90 transition-all shadow-lg active:scale-95"
           >
-            <Plus size={18} className="sm:w-5 sm:h-5" />
+            <Plus size={16} className="sm:w-5 sm:h-5" />
             <span>{t('addCustomer')}</span>
           </button>
         </div>
       </header>
 
-      <div className="premium-card">
-        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/30">
+      <div className="bg-white sm:premium-card border-b border-slate-100 sm:border-none">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/20">
           <div className="relative max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-xs sm:text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-bold text-[10px] sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -247,7 +269,7 @@ export default function CustomerList() {
         </div>
 
         <div className="overflow-x-auto">
-          {/* Desktop Table */}
+          {/* Desktop Table View */}
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
@@ -291,11 +313,11 @@ export default function CustomerList() {
                   <td className="px-6 py-5 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button 
-                        onClick={() => fetchPurchaseHistory(customer)}
+                        onClick={() => viewProfile(customer)}
                         className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-emerald-100"
-                        title={t('history')}
+                        title={t('viewProfile')}
                       >
-                        <History size={16} />
+                        <User size={16} />
                       </button>
                       <button 
                         onClick={() => {
@@ -320,30 +342,27 @@ export default function CustomerList() {
             </tbody>
           </table>
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-slate-50">
+          {/* Mobile Detailed Flow (No Cards) */}
+          <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
             ) : filteredCustomers.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
             ) : filteredCustomers.map((customer) => (
-              <div key={customer.id} className="p-4 space-y-4">
+              <div key={customer.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-black text-base border border-slate-200">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-black shadow-xl shadow-slate-200">
                       {customer.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 tracking-tight text-sm">{customer.name}</p>
-                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">{customer.phone}</p>
+                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{customer.name}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">{customer.phone}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => fetchPurchaseHistory(customer)}
-                      className="w-8 h-8 flex items-center justify-center text-emerald-500 bg-emerald-50 rounded-lg"
-                    >
-                      <History size={14} />
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => viewProfile(customer)} className="p-2 sm:p-2.5 bg-emerald-50 rounded-xl text-emerald-500 hover:bg-emerald-100 transition-colors border border-emerald-100">
+                      <History size={16} />
                     </button>
                     <button 
                       onClick={() => {
@@ -351,24 +370,21 @@ export default function CustomerList() {
                         setFormData(customer);
                         setIsModalOpen(true);
                       }}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg transition-all"
+                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={16} />
                     </button>
-                    <button 
-                      onClick={() => handleDelete(customer.id!)}
-                      className="w-8 h-8 flex items-center justify-center text-rose-300 bg-rose-50 rounded-lg transition-all"
-                    >
-                      <Trash2 size={14} />
+                    <button onClick={() => handleDelete(customer.id!)} className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100">
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm text-slate-300">
-                    <MapPin size={12} />
+                {customer.address && (
+                  <div className="flex items-start gap-2.5 p-3.5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                    <MapPin size={14} className="text-slate-300 mt-0.5" />
+                    <p className="text-[11px] font-bold text-slate-500 leading-snug tracking-tight">{customer.address}</p>
                   </div>
-                  <p className="text-[10px] font-semibold text-slate-500 leading-snug tracking-tight line-clamp-1">{customer.address || 'No address provided'}</p>
-                </div>
+                )}
               </div>
             ))}
           </div>
@@ -378,7 +394,7 @@ export default function CustomerList() {
       {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -390,182 +406,265 @@ export default function CustomerList() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[1.5rem] sm:rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col mx-4"
+              className="bg-white rounded-none sm:rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 h-full sm:h-auto sm:max-h-[90vh] flex flex-col"
             >
-            <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
-              <div className="flex items-center gap-3 sm:gap-6">
+            <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-white sm:bg-slate-50/30 shrink-0">
+              <div className="flex items-center gap-4 sm:gap-6">
                 <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
                   <User size={20} className="sm:w-[28px] sm:h-[28px]" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">{editingCustomer ? t('edit') : t('newOrder')}</h3>
+                  <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">{editingCustomer ? t('edit') : t('addCustomer')}</h3>
                   <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">{t('manualEntry')}</p>
                 </div>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-2xl transition-all">
-                <X size={20} className="sm:w-6 sm:h-6" />
+                <X size={18} className="sm:w-6 sm:h-6" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-4 sm:p-10 space-y-4 sm:space-y-8 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-10 space-y-4 sm:space-y-8 overflow-y-auto flex-1 pb-20 sm:pb-10">
               <div>
-                <label className="detail-label">{t('customer')}</label>
+                <label className="detail-label text-[10px] sm:text-xs mb-1.5">{t('customer')}</label>
                 <div className="relative">
-                  <User size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <User size={14} className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input 
                     required
                     type="text" 
                     placeholder={t('customer')}
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all"
+                    className="w-full pl-11 sm:pl-14 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-xs sm:text-base h-11 sm:h-auto"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                   />
                 </div>
               </div>
               <div>
-                <label className="detail-label">{t('mobile')}</label>
+                <label className="detail-label text-[10px] sm:text-xs mb-1.5">{t('mobile')}</label>
                 <div className="relative">
-                  <Phone size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <Phone size={14} className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-300" />
                   <input 
                     required
                     type="tel" 
                     placeholder={t('mobile')}
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all font-mono"
+                    className="w-full pl-11 sm:pl-14 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all font-mono text-xs sm:text-base h-11 sm:h-auto"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                   />
                 </div>
               </div>
               <div>
-                <label className="detail-label">{t('address')}</label>
+                <label className="detail-label text-[10px] sm:text-xs mb-1.5">{t('address')}</label>
                 <div className="relative">
-                  <MapPin size={18} className="absolute left-5 top-5 text-slate-300" />
+                  <MapPin size={14} className="absolute left-4 sm:left-5 top-4 sm:top-5 text-slate-300" />
                   <textarea 
                     placeholder={t('address')}
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all min-h-[120px]"
+                    className="w-full pl-11 sm:pl-14 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all min-h-[100px] sm:min-h-[120px] text-xs sm:text-base"
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                   />
                 </div>
               </div>
+              <div className="pt-2 sm:pt-4 flex gap-3 sm:gap-4 shrink-0 mt-auto">
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white transition-all h-12 sm:h-auto"
+                >
+                  {t('cancel')}
+                </button>
+                <button 
+                  onClick={handleSubmit}
+                  className="flex-1 px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 h-12 sm:h-auto"
+                >
+                  {editingCustomer ? t('save') : t('newOrder')}
+                </button>
+              </div>
             </form>
-            <div className="p-4 sm:p-10 border-t border-slate-50 bg-slate-50/30 flex gap-2 sm:gap-4 shrink-0">
-              <button 
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white transition-all"
-              >
-                {t('cancel')}
-              </button>
-              <button 
-                onClick={handleSubmit}
-                className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
-              >
-                {editingCustomer ? t('save') : t('registerProduct')}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
-      {/* History Modal */}
+      {/* Profile Modal */}
       <AnimatePresence>
-        {isHistoryModalOpen && selectedCustomerHistory && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {isProfileOpen && selectedCustomer && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsHistoryModalOpen(false)}
+              onClick={() => setIsProfileOpen(false)}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[3rem] w-full max-w-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col"
+              className="bg-white rounded-none sm:rounded-[3rem] w-full max-w-4xl shadow-2xl overflow-hidden relative z-10 h-full sm:h-auto sm:max-h-[90vh] flex flex-col"
             >
-              <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 bg-slate-900 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
-                    <History size={28} />
+              <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3 sm:gap-6">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-3xl flex items-center justify-center shadow-lg">
+                    <User size={20} className="sm:w-8 sm:h-8" />
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{t('history')}</h3>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{selectedCustomerHistory.name}</p>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-2xl font-black text-slate-900 leading-tight truncate">{selectedCustomer.name}</h3>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mt-0.5 sm:mt-2">
+                       <span className="text-[8px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">{selectedCustomer.phone}</span>
+                       <div className="hidden min-[400px]:block w-1 h-1 rounded-full bg-slate-200"></div>
+                       <span className={cn(
+                         "text-[8px] sm:text-xs font-black uppercase tracking-widest",
+                         calculateTotalDue() > 0 ? "text-rose-500" : "text-emerald-500"
+                       )}>
+                         {t('due')}: {formatCurrency(calculateTotalDue())}
+                       </span>
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-300 hover:text-slate-900 p-3 hover:bg-slate-100 rounded-2xl transition-all">
-                  <X size={24} />
+                <button onClick={() => setIsProfileOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-xl transition-all">
+                  <X size={18} className="sm:w-6 sm:h-6" />
                 </button>
               </div>
-              <div className="p-10 space-y-12 overflow-y-auto">
-                {customerOrders.length === 0 ? (
-                  <div className="py-20 text-center">
-                    <ShoppingCart size={48} className="mx-auto mb-4 text-slate-100" />
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('noData')}</p>
+
+              {/* Tabs */}
+              <div className="flex px-4 sm:px-8 border-b border-slate-50 bg-white sticky top-0 z-20 shrink-0">
+                <button 
+                  onClick={() => setProfileTab('orders')}
+                  className={cn(
+                    "flex-1 sm:flex-none px-4 py-3 sm:py-5 text-[9px] sm:text-xs font-black uppercase tracking-[0.2em] relative transition-all",
+                    profileTab === 'orders' ? "text-slate-900" : "text-slate-300 hover:text-slate-500"
+                  )}
+                >
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <ShoppingCart size={12} className="sm:w-3.5 sm:h-3.5" />
+                    <span>{t('orders')}</span>
+                    <span className="opacity-50">({customerOrders.length})</span>
                   </div>
-                ) : (
-                  <div className="space-y-8">
-                    {customerOrders.map((order) => (
-                      <div key={order.id} className="premium-card p-8 space-y-6 hover:border-slate-200 transition-all">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-50 pb-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-100">
-                              <Eye size={18} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Ref: #{order.id.slice(-6)}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Calendar size={12} className="text-slate-300" />
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(order.createdAt)}</span>
+                  {profileTab === 'orders' && <motion.div layoutId="profileTab" className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-slate-900 rounded-t-full" />}
+                </button>
+                <button 
+                  onClick={() => setProfileTab('payments')}
+                  className={cn(
+                    "flex-1 sm:flex-none px-4 py-3 sm:py-5 text-[9px] sm:text-xs font-black uppercase tracking-[0.2em] relative transition-all",
+                    profileTab === 'payments' ? "text-slate-900" : "text-slate-300 hover:text-slate-500"
+                  )}
+                >
+                   <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <History size={12} className="sm:w-3.5 sm:h-3.5" />
+                    <span>{t('payments')}</span>
+                    <span className="opacity-50">({customerPayments.length})</span>
+                  </div>
+                  {profileTab === 'payments' && <motion.div layoutId="profileTab" className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-slate-900 rounded-t-full" />}
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/30 pb-24 sm:pb-8">
+                {profileTab === 'orders' ? (
+                  <div className="space-y-4 sm:space-y-6">
+                    {customerOrders.length === 0 ? (
+                      <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                        <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">No transactional records identified.</p>
+                      </div>
+                    ) : (
+                      customerOrders.map(order => (
+                        <div key={order.id} className="premium-card p-4 sm:p-8 space-y-4 sm:space-y-6 bg-white border border-slate-100 !rounded-3xl sm:!rounded-[3rem]">
+                          <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
+                                <Search size={14} className="sm:w-[18px] sm:h-[18px]" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] sm:text-xs font-black text-slate-900 uppercase tracking-tight">Invoice #{order.id.slice(-6)}</p>
+                                <p className="text-[7px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 sm:mt-1">{formatDate(order.createdAt)}</p>
                               </div>
                             </div>
+                            <span className={cn(
+                              "px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl text-[7px] sm:text-[9px] font-black uppercase tracking-widest border",
+                              order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                            )}>
+                              {order.status}
+                            </span>
                           </div>
-                          <span className={cn(
-                            "px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border w-fit",
-                            order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
-                          )}>
-                            {order.status}
-                          </span>
-                        </div>
-
-                        <div className="space-y-4">
-                          <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
-                            <ArrowRight size={12} /> {t('items')}
-                          </h4>
-                          <div className="space-y-2">
+                          
+                          <div className="space-y-1.5 sm:space-y-2">
                             {order.items?.map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-50">
-                                <span className="text-xs font-bold text-slate-700">{item.name}</span>
-                                <div className="flex items-center gap-4">
-                                  <span className="text-[10px] font-black text-slate-300 tabular-nums">{item.quantity} × {formatCurrency(item.price)}</span>
-                                  <span className="text-xs font-black text-slate-900 tabular-nums">{formatCurrency(item.quantity * item.price)}</span>
+                              <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-[9px] sm:text-xs font-bold text-slate-600 px-3 sm:px-4 py-2 bg-slate-50 rounded-xl gap-1 sm:gap-0">
+                                <span className="text-slate-900 uppercase tracking-tight">{item.name}</span>
+                                <div className="flex justify-between sm:contents">
+                                  <span className="tabular-nums opacity-60 font-medium">{item.quantity} × {formatCurrency(item.price)}</span>
+                                  <span className="tabular-nums text-slate-900">{formatCurrency(item.quantity * item.price)}</span>
                                 </div>
                               </div>
                             ))}
                           </div>
-                        </div>
 
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-50 bg-slate-50/10 p-4 rounded-xl">
-                          <div>
-                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('total')}</p>
-                            <p className="text-xl font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('paid')}</p>
-                            <p className="text-xl font-black text-emerald-600 tabular-nums">{formatCurrency(order.paidAmount)}</p>
+                          <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2 sm:pt-4">
+                            <div className="p-3 sm:p-4 bg-slate-900 text-white rounded-xl sm:rounded-2xl shadow-lg shadow-slate-200">
+                              <p className="text-[7px] sm:text-[9px] font-black text-white/40 uppercase tracking-widest mb-0.5 sm:mb-1">Total</p>
+                              <p className="text-xs sm:text-lg font-black tabular-nums">{formatCurrency(order.totalAmount)}</p>
+                            </div>
+                            <div className="p-3 sm:p-4 bg-emerald-50 text-emerald-900 rounded-xl sm:rounded-2xl border border-emerald-100">
+                              <p className="text-[7px] sm:text-[9px] font-black text-emerald-300 uppercase tracking-widest mb-0.5 sm:mb-1">Paid</p>
+                              <p className="text-xs sm:text-lg font-black tabular-nums">{formatCurrency(order.paidAmount)}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2 sm:space-y-4">
+                    {customerPayments.length === 0 ? (
+                       <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                         <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">No payment archives recorded.</p>
+                       </div>
+                    ) : (
+                      customerPayments.map(payment => (
+                        <div key={payment.id} className="flex items-center justify-between p-3.5 sm:p-6 bg-white border border-slate-100 rounded-xl sm:rounded-2xl shadow-sm hover:border-emerald-200 transition-all group">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
+                              <Download size={14} className="sm:w-[18px] sm:h-[18px]" />
+                            </div>
+                            <div>
+                               <p className="text-sm sm:text-base font-black text-slate-900 tabular-nums">{formatCurrency(payment.amount)}</p>
+                               <p className="text-[8px] sm:text-[10px] font-medium text-slate-400 mt-0.5">{payment.paymentDate}</p>
+                            </div>
+                          </div>
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 border border-slate-100">
+                            <Calendar size={12} className="sm:w-3.5 sm:h-3.5" />
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
-              <div className="p-10 border-t border-slate-50 bg-slate-50/30 shrink-0">
+
+              <div className="p-4 sm:p-10 bg-white border-t border-slate-100 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Financial Standing</p>
+                  <p className={cn(
+                    "text-lg sm:text-2xl font-black tabular-nums mt-0.5 flex items-center gap-2",
+                    calculateTotalDue() > 0 ? "text-rose-500" : "text-emerald-500"
+                  )}>
+                    {formatCurrency(calculateTotalDue())} 
+                    <span className="text-[9px] opacity-100 uppercase tracking-widest font-black flex items-center gap-1">
+                      {calculateTotalDue() > 0 ? (
+                        <>
+                          <div className="w-1 h-1 rounded-full bg-rose-500" />
+                          Due
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                          Balanced
+                        </>
+                      )}
+                    </span>
+                  </p>
+                </div>
                 <button 
-                  onClick={() => setIsHistoryModalOpen(false)}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="w-full sm:w-auto px-10 py-3.5 sm:py-4 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 h-11 sm:h-auto"
                 >
                   {t('close')}
                 </button>

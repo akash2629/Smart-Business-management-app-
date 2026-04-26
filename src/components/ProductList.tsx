@@ -48,8 +48,7 @@ export default function ProductList() {
     if (!user) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'products'), where('ownerId', '==', user.uid));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'products'));
       const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -140,13 +139,9 @@ export default function ProductList() {
     e.preventDefault();
     if (!user) return;
 
-    if ((formData.images?.length || 0) < 6) {
-      if (!confirm('You have strictly fewer than 6 images. Proceed anyway?')) return;
-    }
-
     try {
       if (editingProduct?.id) {
-        const productRef = doc(db, 'products', editingProduct.id);
+        const productRef = doc(db, 'users', user.uid, 'products', editingProduct.id);
         await updateDoc(productRef, {
           name: formData.name,
           code: formData.code,
@@ -156,7 +151,7 @@ export default function ProductList() {
         });
         toast.success('Product updated');
       } else {
-        await addDoc(collection(db, 'products'), {
+        await addDoc(collection(db, 'users', user.uid, 'products'), {
           ...formData,
           ownerId: user.uid
         });
@@ -172,9 +167,9 @@ export default function ProductList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!confirm('Are you sure you want to delete this product?') || !user) return;
     try {
-      await deleteDoc(doc(db, 'products', id));
+      await deleteDoc(doc(db, 'users', user.uid, 'products', id));
       toast.success('Product deleted');
       fetchProducts();
     } catch (error) {
@@ -201,20 +196,20 @@ export default function ProductList() {
   );
 
   return (
-    <div className="space-y-6 sm:space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+    <div className="space-y-0 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-0 z-40">
         <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('inventoryGlobal')}
           </div>
-          <h1 className="tracking-tighter">{t('productCatalog')}</h1>
-          <p className="text-slate-500 font-medium tracking-tight hdden sm:block text-xs sm:text-base">{t('inventoryGlobal')}</p>
+          <h1 className="text-sm sm:text-5xl font-serif font-black tracking-tighter leading-tight">{t('productCatalog')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight hdden sm:block text-xs sm:text-base hidden sm:block">{t('inventoryGlobal')}</p>
         </div>
         <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-4">
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-brand-accent/20 text-brand-accent hover:bg-brand-accent/5 p-2 sm:p-3"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-brand-accent/20 text-brand-accent font-bold text-[10px] sm:text-base bg-white hover:bg-brand-accent/5 transition-all shadow-sm"
           >
             <Download size={18} className="sm:w-5 sm:h-5" />
             <span>{t('exportExcel')}</span>
@@ -225,7 +220,7 @@ export default function ProductList() {
               setFormData({ name: '', code: '', price: 0, stock: 0 });
               setIsModalOpen(true);
             }}
-            className="premium-button-primary p-2 sm:p-3"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 font-bold text-white text-[10px] sm:text-base hover:opacity-90 transition-all shadow-lg active:scale-95"
           >
             <Plus size={18} className="sm:w-5 sm:h-5" />
             <span>{t('addAsset')}</span>
@@ -233,14 +228,14 @@ export default function ProductList() {
         </div>
       </header>
 
-      <div className="premium-card">
-        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/30">
+      <div className="bg-white sm:premium-card border-b border-slate-100 sm:border-none">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/20">
           <div className="relative max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-10 sm:pl-12 pr-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-medium text-xs sm:text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all font-bold text-[10px] sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -248,7 +243,7 @@ export default function ProductList() {
         </div>
 
         <div className="overflow-x-auto">
-          {/* Desktop Table */}
+          {/* Desktop Table --- omitted for brevity but preserved in real tool call --- */}
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
@@ -335,59 +330,64 @@ export default function ProductList() {
             </tbody>
           </table>
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-slate-50">
+          {/* Mobile Detailed Flow (No Cards) */}
+          <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 font-medium text-xs">Null Registry.</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
             ) : filteredProducts.map((product) => (
-              <div key={product.id} className="p-4 space-y-4">
+              <div key={product.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200">
-                      <Package size={16} />
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl shadow-slate-200">
+                      {product.images && product.images.length > 0 ? (
+                        <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Package size={24} />
+                      )}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 tracking-tight text-sm">{product.name}</p>
-                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{product.code}</p>
+                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{product.name}</p>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">{product.code}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button 
                       onClick={() => {
                         setEditingProduct(product);
                         setFormData(product);
                         setIsModalOpen(true);
                       }}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg transition-all"
+                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => handleDelete(product.id!)}
-                      className="w-8 h-8 flex items-center justify-center text-rose-300 bg-rose-50 rounded-lg transition-all"
+                      className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-400 border border-rose-100"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-50">
+                
+                <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
                   <div className="flex flex-col">
-                    <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Valuation</label>
-                    <span className="font-black text-slate-700 tabular-nums text-xs">{formatCurrency(product.price)}</span>
+                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Unit Value</label>
+                    <span className="font-bold text-slate-900 text-xs tabular-nums">{formatCurrency(product.price)}</span>
                   </div>
                   <div className="text-right flex flex-col items-end">
-                    <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">{t('stockLevel')}</label>
-                    <div className="flex items-center gap-1.5">
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full",
+                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">In Stock</label>
+                    <div className="flex items-center gap-2">
+                       <div className={cn(
+                        "w-1.5 h-1.5 rounded-full shadow-sm",
                         product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
                       )} />
                       <span className={cn(
-                        "font-black tabular-nums text-xs",
-                        product.stock > 10 ? "text-slate-900" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
-                      )}>{product.stock} {t('items')}</span>
+                        "font-black text-xs tabular-nums",
+                        product.stock > 10 ? "text-emerald-600" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
+                      )}>{product.stock} Units</span>
                     </div>
                   </div>
                 </div>
@@ -400,7 +400,7 @@ export default function ProductList() {
       {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -412,10 +412,10 @@ export default function ProductList() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[1.5rem] sm:rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 max-h-[90vh] flex flex-col mx-4"
+              className="bg-white rounded-none sm:rounded-[3rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden relative z-10 h-full sm:h-auto sm:max-h-[90vh] flex flex-col"
             >
-              <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-slate-50/30 shrink-0">
-                <div className="flex items-center gap-3 sm:gap-5">
+              <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-white sm:bg-slate-50/30 shrink-0">
+                <div className="flex items-center gap-4 sm:gap-5">
                   <div className="w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 text-white rounded-xl sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-slate-200">
                     <Package size={20} className="sm:w-7 sm:h-7" />
                   </div>
@@ -428,14 +428,14 @@ export default function ProductList() {
                   <X size={20} className="sm:w-6 sm:h-6" />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} id="product-form" className="p-4 sm:p-10 space-y-4 sm:space-y-8 overflow-y-auto">
+              <form onSubmit={handleSubmit} id="product-form" className="p-4 sm:p-10 space-y-4 sm:space-y-8 overflow-y-auto flex-1 pb-20 sm:pb-10">
                 <div className="space-y-6">
                   {/* Image Upload Section */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <label className="detail-label">Asset Visuals</label>
+                      <label className="detail-label text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Asset Visuals</label>
                       <span className={cn(
-                        "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                        "px-2 py-0.5 rounded-lg text-[7px] sm:text-[9px] font-black uppercase tracking-widest border",
                         (formData.images?.length || 0) < 6 
                           ? "bg-amber-50 text-amber-600 border-amber-100" 
                           : "bg-emerald-50 text-emerald-600 border-emerald-100"
@@ -444,9 +444,9 @@ export default function ProductList() {
                       </span>
                     </div>
                     
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
                       {formData.images?.map((url, idx) => (
-                        <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-100 group">
+                        <div key={idx} className="relative aspect-square rounded-xl sm:rounded-2xl overflow-hidden border border-slate-100 group">
                           <img src={url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           <button 
                             type="button"
@@ -462,14 +462,14 @@ export default function ProductList() {
                         type="button"
                         disabled={uploading}
                         onClick={() => fileInputRef.current?.click()}
-                        className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 text-slate-300 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group"
+                        className="aspect-square rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-1 sm:gap-2 text-slate-300 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group"
                       >
                         {uploading ? (
-                          <Loader2 size={20} className="animate-spin text-brand-primary" />
+                          <Loader2 size={16} className="animate-spin text-brand-primary" />
                         ) : (
                           <>
-                            <Upload size={20} className="group-hover:scale-110 transition-transform" />
-                            <span className="text-[9px] font-black uppercase tracking-widest">Add {6 - (formData.images?.length || 0) > 0 ? 6 - (formData.images?.length || 0) : ''} More</span>
+                            <Upload size={16} className="group-hover:scale-110 transition-transform sm:w-5 sm:h-5" />
+                            <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest">Add {6 - (formData.images?.length || 0) > 0 ? 6 - (formData.images?.length || 0) : ''} More</span>
                           </>
                         )}
                       </button>
@@ -486,82 +486,82 @@ export default function ProductList() {
                   </div>
 
                   <div>
-                    <label className="detail-label">{t('assetIdentifier')}</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('assetIdentifier')}</label>
                     <div className="relative">
-                      <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                      <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                       <input 
                         required
                         type="text" 
                         placeholder={t('assetIdentifier')}
-                        className="w-full pl-12 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300"
+                        className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 text-xs sm:text-base h-11 sm:h-auto"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="detail-label">{t('registryCode')}</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('registryCode')}</label>
                     <div className="relative">
-                      <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                       <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                       <input 
                         required
                         type="text" 
                         placeholder="SKU-9982-X"
-                        className="w-full pl-12 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300"
+                        className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 text-xs sm:text-base h-11 sm:h-auto"
                         value={formData.code}
                         onChange={(e) => setFormData({...formData, code: e.target.value})}
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
-                      <label className="detail-label">{t('unitValuation')}</label>
+                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('unitValuation')}</label>
                       <div className="relative">
-                        <BdtSign size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                        <BdtSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                         <input 
                           required
                           type="number" 
                           step="0.01"
                           placeholder="0.00"
-                          className="w-full pl-12 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums"
-                          value={formData.price}
-                          onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value)})}
+                          className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
+                          value={formData.price || 0}
+                          onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="detail-label">{t('stockLevel')}</label>
+                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('stockLevel')}</label>
                       <div className="relative">
-                        <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                        <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                         <input 
                           required
                           type="number" 
                           placeholder="0"
-                          className="w-full pl-12 pr-6 py-4 rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums"
-                          value={formData.stock}
-                          onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value)})}
+                          className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
+                          value={formData.stock || 0}
+                          onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
+                <div className="pt-2 sm:pt-4 flex gap-3 sm:gap-4 shrink-0 mt-auto px-1 sm:px-0">
+                  <button 
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-[2rem] border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white transition-all h-11 sm:h-auto"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    type="submit"
+                    form="product-form"
+                    className="flex-1 px-4 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-[2rem] bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 h-11 sm:h-auto"
+                  >
+                    {editingProduct ? t('save') : t('registerProduct')}
+                  </button>
+                </div>
               </form>
-              <div className="p-4 sm:p-10 border-t border-slate-50 bg-slate-50/30 flex gap-2 sm:gap-4 shrink-0">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 text-slate-400 font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-white transition-all"
-                >
-                  {t('cancel')}
-                </button>
-                <button 
-                  type="submit"
-                  form="product-form"
-                  className="flex-1 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200"
-                >
-                  {editingProduct ? t('save') : t('registerProduct')}
-                </button>
-              </div>
             </motion.div>
           </div>
         )}

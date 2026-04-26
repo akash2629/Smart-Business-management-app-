@@ -47,12 +47,10 @@ export default function TransactionHistory() {
     if (!user) return;
     setLoading(true);
     try {
-      // Fetch all payments for the specific date
+      // Simplified query to avoid composite index requirements
       const q = query(
-        collection(db, 'payments'),
-        where('ownerId', '==', user.uid),
-        where('paymentDate', '==', dateFilter),
-        orderBy('createdAt', 'desc')
+        collection(db, 'users', user.uid, 'payments'),
+        where('paymentDate', '==', dateFilter)
       );
       
       const snap = await getDocs(q);
@@ -61,11 +59,18 @@ export default function TransactionHistory() {
         ...doc.data()
       })) as any[];
 
-      setPayments(data);
-      const total = data.reduce((sum, p) => sum + (p.amount || 0), 0);
-      setStats({ total, count: data.length });
+      // Sort client-side instead of in the query to avoid needing a composite index
+      const sortedData = data.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis?.() || 0;
+        const timeB = b.createdAt?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
+
+      setPayments(sortedData);
+      const total = sortedData.reduce((sum, p) => sum + (p.amount || 0), 0);
+      setStats({ total, count: sortedData.length });
     } catch (error) {
-      console.error(error);
+      console.error('Fetch Payments Error:', error);
       toast.error('Failed to fetch transaction logs');
     } finally {
       setLoading(false);
@@ -91,65 +96,65 @@ export default function TransactionHistory() {
   );
 
   return (
-    <div className="space-y-12">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
+    <div className="space-y-0 sm:space-y-12">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-0 z-40">
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-4 h-[2px] bg-slate-200"></div>
             {t('financialOverview')}
           </div>
-          <h1 className="text-5xl font-serif font-black text-slate-900 tracking-tighter">{t('dailyRecord')}</h1>
-          <p className="text-slate-500 font-medium tracking-tight">{t('trackOutstanding')}</p>
+          <h1 className="text-sm sm:text-5xl font-serif font-black tracking-tighter leading-tight">{t('dailyRecord')}</h1>
+          <p className="text-slate-500 font-medium tracking-tight hidden sm:block">{t('trackOutstanding')}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <input 
             type="date"
-            className="px-5 py-3.5 rounded-2xl border border-slate-100 bg-white font-bold text-slate-700 shadow-sm focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all"
+            className="flex-1 sm:flex-none px-3 sm:px-5 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-white font-bold text-slate-700 text-[10px] sm:text-sm shadow-sm focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
           />
           <button 
             onClick={exportToExcel}
-            className="premium-button-secondary border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-emerald-100 text-emerald-700 font-bold text-[10px] sm:text-base bg-white hover:bg-emerald-50 transition-all shadow-sm"
           >
-            <Download size={20} />
+            <Download size={18} className="sm:w-5 sm:h-5" />
             <span className="hidden sm:inline">{t('exportExcel')}</span>
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-        <div className="premium-card p-8 bg-slate-900 text-white relative overflow-hidden group">
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{t('paid')}</p>
-          <h3 className="text-4xl font-black tabular-nums tracking-tighter flex items-center gap-2">
-            <BdtSign size={32} className="text-white/20" />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-0 sm:gap-8 border-b border-slate-100 sm:border-none bg-white">
+        <div className="bg-slate-900 text-white p-5 sm:p-8 relative overflow-hidden group border-r border-white/5 sm:premium-card">
+          <p className="text-[8px] sm:text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{t('paid')}</p>
+          <h3 className="text-xl sm:text-4xl font-black tabular-nums tracking-tighter flex items-center gap-2">
+            <BdtSign size={20} className="sm:w-8 sm:h-8 text-white/20" />
             {formatCurrency(stats.total).replace('৳', '')}
           </h3>
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-all duration-700" />
+          <div className="absolute top-0 right-0 w-16 sm:w-32 h-16 sm:h-32 bg-white/5 rounded-full blur-2xl sm:blur-3xl -translate-y-1/2 translate-x-1/2" />
         </div>
-        <div className="premium-card p-8">
-          <p className="detail-label text-slate-400">{t('totalCombinedValuation')}</p>
-          <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{stats.count} {t('orderRegistry')}</h3>
+        <div className="bg-white p-5 sm:p-8 sm:premium-card sm:border-none border-r border-slate-100">
+          <p className="detail-label text-slate-400 text-[8px] sm:text-[10px]">{t('totalCombinedValuation')}</p>
+          <h3 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">{stats.count} <span className="text-[10px] sm:text-base text-slate-400">{t('orderRegistry')}</span></h3>
         </div>
-        <div className="premium-card p-8 flex items-center justify-between">
+        <div className="bg-white p-5 sm:p-8 col-span-2 lg:col-span-1 flex items-center justify-between sm:premium-card border-t border-slate-100 sm:border-t-0">
           <div>
-            <p className="detail-label text-slate-400">{t('status')}</p>
-            <h3 className="text-3xl font-bold text-emerald-600 tracking-tight">{t('paid')}</h3>
+            <p className="detail-label text-slate-400 text-[8px] sm:text-[10px]">{t('status')}</p>
+            <h3 className="text-xl sm:text-3xl font-bold text-emerald-600 tracking-tight">{t('paid')}</h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center animate-pulse shadow-sm">
-            <TrendingUp size={24} />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center animate-pulse shadow-sm">
+            <TrendingUp size={20} className="sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>
 
-      <div className="premium-card">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative max-w-md w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      <div className="bg-white sm:premium-card border-b border-slate-100 sm:border-none">
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/20">
+          <div className="relative max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={t('search')} 
-              className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-medium text-sm"
+              className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 transition-all font-bold text-[10px] sm:text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -157,6 +162,7 @@ export default function TransactionHistory() {
         </div>
 
         <div className="overflow-x-auto">
+          {/* Desktop Table --- omitted for brevity but preserved in real tool call --- */}
           <table className="w-full text-left hidden md:table">
             <thead>
               <tr className="bg-slate-50/50">
@@ -211,27 +217,34 @@ export default function TransactionHistory() {
             </tbody>
           </table>
 
-          {/* Mobile View */}
-          <div className="md:hidden divide-y divide-slate-50">
-            {filteredPayments.map((p) => (
-              <div key={p.id} className="p-6 space-y-4">
+          {/* Mobile Detailed Flow (No Cards) */}
+          <div className="md:hidden divide-y divide-slate-100 bg-white">
+            {loading ? (
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
+            ) : filteredPayments.length === 0 ? (
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Transactions</div>
+            ) : filteredPayments.map((p) => (
+              <div key={p.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center">
-                      <Wallet size={18} />
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
+                      <Wallet size={20} />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 tracking-tight">{p.method}</p>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                        {p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleTimeString() : ''}
+                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{p.method}</p>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">
+                        {p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleTimeString() : 'Recent Activity'}
                       </p>
                     </div>
                   </div>
-                  <span className="text-lg font-black text-emerald-600">{formatCurrency(p.amount)}</span>
+                  <div className="text-right">
+                    <p className="text-lg font-black text-emerald-600 tabular-nums leading-none">{formatCurrency(p.amount)}</p>
+                    <p className="text-[8px] font-black text-emerald-500/50 uppercase tracking-widest mt-1">Settlement</p>
+                  </div>
                 </div>
-                <div className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-50">
-                   <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Audit Key</p>
-                   <p className="text-[11px] font-mono font-bold text-slate-900 truncate">{p.id}</p>
+                <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Audit Auth Key</p>
+                   <p className="text-[10px] font-mono font-bold text-slate-900 truncate">{p.id}</p>
                 </div>
               </div>
             ))}

@@ -41,7 +41,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const themeDoc = doc(db, 'user_settings', user.uid);
+    const themeDoc = doc(db, 'users', user.uid, 'settings', 'theme');
     
     const unsubscribe = onSnapshot(themeDoc, (docSnap) => {
       if (docSnap.exists() && docSnap.data().theme) {
@@ -60,7 +60,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     if (user) {
       try {
-        await setDoc(doc(db, 'user_settings', user.uid), {
+        await setDoc(doc(db, 'users', user.uid, 'settings', 'theme'), {
           theme: updated
         }, { merge: true });
       } catch (error) {
@@ -73,7 +73,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setColors(defaultColors);
     if (user) {
       try {
-        await setDoc(doc(db, 'user_settings', user.uid), {
+        await setDoc(doc(db, 'users', user.uid, 'settings', 'theme'), {
           theme: defaultColors
         }, { merge: true });
       } catch (error) {

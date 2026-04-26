@@ -1,18 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Default Deny
+    
+    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Helpers ---
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(data) {
-      return isSignedIn() && data.ownerId == request.auth.uid;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isValidId(id) {
@@ -26,108 +31,106 @@ service cloud.firestore {
     function existing() {
       return resource.data;
     }
-
-    // --- Entity Validations ---
-
-    function isValidProduct(p) {
-      return p.name is string && p.name.size() > 0 && p.name.size() <= 200 &&
-             p.price is number && p.price >= 0 &&
-             p.stock is int && p.stock >= 0 &&
-             p.ownerId == request.auth.uid;
+    
+    // SHARED VALIDATION HELPERS
+    function validateTimestamp(data, field, isCreate) {
+      return data[field] == (isCreate ? request.time : existing()[field]);
     }
 
-    function isValidCustomer(c) {
-      return c.name is string && c.name.size() > 0 && c.name.size() <= 200 &&
-             c.ownerId == request.auth.uid;
-    }
-
-    function isValidOrder(o) {
-      return o.customerId is string && 
-             o.totalAmount is number && 
-             o.paidAmount is number && 
-             o.status in ['Paid', 'Due'] &&
-             o.type in ['Invoice', 'Quotation', 'Purchase'] &&
-             o.ownerId == request.auth.uid;
-    }
-
-    function isValidOrderItem(i) {
-      return i.productId is string &&
-             i.quantity is int && i.quantity > 0 &&
-             i.price is number && i.price >= 0 &&
-             i.ownerId == request.auth.uid;
-    }
-
-    function isValidPayment(p) {
-      return p.customerId is string &&
-             p.orderId is string &&
-             p.amount is number && p.amount > 0 &&
-             p.ownerId == request.auth.uid;
-    }
-
-    function isValidUserSettings(s) {
-      return s.theme is map &&
-             (s.theme.keys().hasAll(['primary', 'secondary', 'accent']) || s.theme.keys().size() == 0);
-    }
-
-    // --- Rules ---
-
-    match /user_settings/{userId} {
-      allow read, write: if isSignedIn() && userId == request.auth.uid;
-    }
-
-    match /test/connection {
-      allow read: if true; // Publicly readable for connection sanity checks
-    }
-
-    match /shop_reset_sessions/{userId} {
-      allow read, write: if isSignedIn() && userId == request.auth.uid;
-    }
-
-    match /products/{productId} {
-      allow read: if isOwner(existing());
-      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if isOwner(existing()) && isValidProduct(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'price', 'stock'])
-      );
-      allow delete: if isOwner(existing());
-    }
-
-    match /customers/{customerId} {
-      allow read: if isOwner(existing());
-      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming());
-      allow update: if isOwner(existing()) && isValidCustomer(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'address'])
-      );
-      allow delete: if isOwner(existing());
-    }
-
-    match /orders/{orderId} {
-      allow read: if isOwner(existing());
-      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
-      allow update: if isOwner(existing()) && isValidOrder(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['totalAmount', 'paidAmount', 'status', 'type', 'customerName'])
-      );
-      allow delete: if isOwner(existing());
-
-      match /items/{itemId} {
-        allow read: if isOwner(existing());
-        allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
-        allow create: if isSignedIn() && isValidId(itemId) && isValidOrderItem(incoming());
-        allow update, delete: if isOwner(existing());
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      
+      // Reset Sessions
+      match /reset_sessions/{sessionId} {
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) 
+          && incoming().code is string && incoming().code.size() == 6
+          && incoming().expiry is number
+          && incoming().email == request.auth.token.email;
+        allow delete: if isOwner(userId);
       }
-    }
 
-    match /payments/{paymentId} {
-      allow read: if isOwner(existing());
-      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(paymentId) && isValidPayment(incoming());
-      allow update: if isOwner(existing()) && isValidPayment(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'method', 'paymentDate'])
-      );
-      allow delete: if isOwner(existing());
+      // Settings
+      match /settings/{settingId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isValidId(settingId);
+      }
+
+      // Products
+      match /products/{productId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidProduct(incoming());
+        allow update: if isOwner(userId) && isValidProduct(incoming())
+          && (
+            // Action: Stock Update (most common)
+            incoming().diff(existing()).affectedKeys().hasOnly(['stock']) ||
+            // Action: Edit Product
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'price', 'stock', 'images'])
+          );
+        allow delete: if isOwner(userId);
+      }
+
+      function isValidProduct(data) {
+        return data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+          && data.code is string && data.code.size() <= 100
+          && data.price is number && data.price >= 0
+          && data.stock is number
+          && (data.images is list || !data.keys().hasAny(['images']));
+      }
+
+      // Customers
+      match /customers/{customerId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCustomer(incoming());
+        allow update: if isOwner(userId) && isValidCustomer(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      function isValidCustomer(data) {
+        return data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+          && (!data.keys().hasAny(['phone']) || (data.phone is string && data.phone.size() <= 20))
+          && (!data.keys().hasAny(['address']) || (data.address is string && data.address.size() <= 500));
+      }
+
+      // Orders
+      match /orders/{orderId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOrder(incoming())
+          && exists(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
+        allow update: if isOwner(userId) && isValidOrder(incoming())
+          && (
+            // Action: Payment Update
+            incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt'])
+          );
+        allow delete: if isOwner(userId);
+
+        match /items/{itemId} {
+          allow read: if isOwner(userId);
+          allow write: if isOwner(userId);
+        }
+      }
+
+      function isValidOrder(data) {
+        return data.customerId is string && isValidId(data.customerId)
+          && data.totalAmount is number && data.totalAmount >= 0
+          && data.paidAmount is number && data.paidAmount >= 0
+          && data.status in ['Paid', 'Due', 'Quotation']
+          && data.type in ['Invoice', 'Quotation', 'Purchase', 'Opening Balance'];
+      }
+
+      // Payments
+      match /payments/{paymentId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidPayment(incoming())
+          && exists(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
+        allow delete: if isOwner(userId);
+      }
+
+      function isValidPayment(data) {
+        return data.customerId is string && isValidId(data.customerId)
+          && data.amount is number && data.amount >= 0
+          && data.paymentDate is string;
+      }
     }
   }
 }
