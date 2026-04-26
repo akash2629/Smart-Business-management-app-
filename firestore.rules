@@ -96,7 +96,7 @@ service cloud.firestore {
       match /orders/{orderId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidOrder(incoming())
-          && exists(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
         allow update: if isOwner(userId) && isValidOrder(incoming())
           && (
             // Action: Payment Update
@@ -115,14 +115,14 @@ service cloud.firestore {
           && data.totalAmount is number && data.totalAmount >= 0
           && data.paidAmount is number && data.paidAmount >= 0
           && data.status in ['Paid', 'Due', 'Quotation']
-          && data.type in ['Invoice', 'Quotation', 'Purchase', 'Opening Balance'];
+          && (data.type in ['Invoice', 'Quotation', 'Purchase', 'Opening Balance', 'Entry']);
       }
 
       // Payments
       match /payments/{paymentId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidPayment(incoming())
-          && exists(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
         allow delete: if isOwner(userId);
       }
 

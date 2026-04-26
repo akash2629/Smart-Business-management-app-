@@ -37,7 +37,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { signInWithGoogle, logOut } from './lib/firebase';
-import { Languages } from 'lucide-react';
 
 interface NavItemProps {
   to: string;
@@ -124,7 +123,7 @@ function Navigation() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useAuth();
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -182,13 +181,6 @@ function Navigation() {
               <span>Offline Mode</span>
             </div>
           )}
-          <button 
-            onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-900 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 shadow-sm"
-          >
-            <Languages size={16} />
-            <span>{language === 'en' ? 'Bangla' : 'English'}</span>
-          </button>
 
           {user && (
             <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">

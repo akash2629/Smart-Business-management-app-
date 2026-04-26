@@ -175,7 +175,7 @@ export default function TransactionHistory() {
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-20 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Scanning Registry...</td>
+                  <td colSpan={4} className="px-6 py-20 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Loading Bills...</td>
                 </tr>
               ) : filteredPayments.length === 0 ? (
                 <tr>
@@ -220,7 +220,7 @@ export default function TransactionHistory() {
           {/* Mobile Detailed Flow (No Cards) */}
           <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredPayments.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Transactions</div>
             ) : filteredPayments.map((p) => (

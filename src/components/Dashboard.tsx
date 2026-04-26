@@ -186,7 +186,7 @@ export default function Dashboard() {
         <div className="space-y-1 sm:space-y-2">
           <div className="flex items-center gap-2 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
             <div className="w-3 sm:w-4 h-[2px] bg-slate-200"></div>
-            Market Overview
+            Overview
           </div>
           <h1 className="text-3xl sm:text-5xl font-serif font-black text-slate-900 tracking-tighter leading-tight">{t('executiveOverview')}</h1>
           <p className="text-xs sm:text-base text-slate-500 font-medium">{t('realTimePerformance')}</p>
@@ -205,14 +205,14 @@ export default function Dashboard() {
           value={formatCurrency(data.monthlySales)} 
           icon={TrendingUp} 
           color="bg-brand-primary"
-          trend="Current Period"
+          trend="This Month"
         />
         <StatCard 
           title={t('totalRevenue')}
           value={formatCurrency(data.sales)} 
           icon={TrendingUp} 
           color="bg-brand-primary"
-          trend="Lifetime"
+          trend="Total"
         />
         <StatCard 
           title={t('todayDue')}

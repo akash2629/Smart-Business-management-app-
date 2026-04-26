@@ -377,7 +377,7 @@ export default function UnifiedDashboard() {
               <div className="space-y-4 sm:space-y-4">
                 <div className="flex items-center justify-between mb-1 sm:mb-2 px-1">
                   <h3 className="text-[8px] sm:text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5 sm:gap-2">
-                    <Layers size={10} className="sm:w-[12px] sm:h-[12px] text-slate-300" /> Registry Items
+                    <Layers size={10} className="sm:w-[12px] sm:h-[12px] text-slate-300" /> All Items
                   </h3>
                   <button type="button" onClick={addItem} className="text-[7px] sm:text-[10px] font-black text-brand-primary border-b border-brand-primary/20 hover:border-brand-primary pb-0.5 tracking-widest uppercase">
                     Add Entry +

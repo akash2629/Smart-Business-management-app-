@@ -35,6 +35,7 @@ export default function OrderList() {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [isQuickProductModalOpen, setIsQuickProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
@@ -84,11 +85,13 @@ export default function OrderList() {
     customerId: string;
     type: 'Invoice' | 'Quotation' | 'Purchase';
     paidAmount: number;
-    items: { productId: string, quantity: number, price: number }[];
+    totalDiscount: number;
+    items: { productId: string, productName: string, quantity: number, price: number, discount: number }[];
   }>({
     customerId: '',
     type: 'Invoice',
     paidAmount: 0,
+    totalDiscount: 0,
     items: []
   });
 
@@ -97,6 +100,7 @@ export default function OrderList() {
       customerId: '',
       type: 'Invoice',
       paidAmount: 0,
+      totalDiscount: 0,
       items: []
     });
     setEditingOrderId(null);
@@ -150,7 +154,8 @@ export default function OrderList() {
   };
 
   const calculateTotal = () => {
-    return orderForm.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const itemsTotal = orderForm.items.reduce((sum, item) => sum + ((item.price - (item.discount || 0)) * item.quantity), 0);
+    return Math.max(0, itemsTotal - (orderForm.totalDiscount || 0));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -183,6 +188,7 @@ export default function OrderList() {
         customerName: customer?.name || 'Unknown',
         totalAmount,
         paidAmount: orderForm.paidAmount,
+        totalDiscount: orderForm.totalDiscount,
         status,
         type: orderForm.type,
         ownerId: user.uid,
@@ -232,10 +238,13 @@ export default function OrderList() {
         customerId: order.customerId!,
         type: order.type as any,
         paidAmount: order.paidAmount,
+        totalDiscount: order.totalDiscount || 0,
         items: items.map(i => ({
           productId: i.productId,
+          productName: i.productName || products.find(p => p.id === i.productId)?.name || 'Unknown Product',
           quantity: i.quantity,
-          price: i.price
+          price: i.price,
+          discount: i.discount || 0
         }))
       });
       setIsModalOpen(true);
@@ -289,11 +298,21 @@ export default function OrderList() {
     }
   };
 
-  const addItem = () => {
+  const addItem = (product: Product) => {
     setOrderForm({
       ...orderForm,
-      items: [...orderForm.items, { productId: '', quantity: 1, price: 0 }]
+      items: [
+        ...orderForm.items, 
+        { 
+          productId: product.id!, 
+          productName: product.name,
+          quantity: 1, 
+          price: product.salePrice || product.price,
+          discount: 0 
+        }
+      ]
     });
+    setIsProductPickerOpen(false);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -303,7 +322,8 @@ export default function OrderList() {
     if (field === 'productId') {
       const product = products.find(p => p.id === value);
       if (product) {
-        updatedItems[index].price = product.price;
+        updatedItems[index].price = product.salePrice || product.price;
+        updatedItems[index].productName = product.name;
       }
     }
     
@@ -391,6 +411,8 @@ export default function OrderList() {
     o.customerName?.toLowerCase().includes(search.toLowerCase()) || 
     o.id?.toString().includes(search)
   );
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   return (
     <div className="space-y-0 sm:space-y-12">
@@ -519,9 +541,9 @@ export default function OrderList() {
           {/* Mobile Detailed Flow (No Cards) */}
           <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Bills Found</div>
             ) : filteredOrders.map((order) => (
               <div key={order.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
@@ -531,7 +553,7 @@ export default function OrderList() {
                     </div>
                     <div>
                       <p className="font-black text-slate-900 text-[12px] tracking-tight">{order.customerName}</p>
-                      <sm className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">#{order.id?.slice(-6)} • {order.type === 'Quotation' ? 'Quote' : 'Invoice'}</sm>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">#{order.id?.slice(-6)} • {order.type === 'Quotation' ? 'Quote' : 'Invoice'}</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -544,6 +566,20 @@ export default function OrderList() {
                     </span>
                   </div>
                 </div>
+
+                {order.images && order.images.length > 0 && (
+                  <div className="flex gap-2 py-2 overflow-x-auto invisible-scrollbar">
+                    {order.images.map((img: string, i: number) => (
+                      <div 
+                        key={i} 
+                        className="w-12 h-12 rounded-xl overflow-hidden border border-slate-100 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setPreviewImage(img)}
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-1.5 sm:gap-2">
@@ -634,7 +670,7 @@ export default function OrderList() {
                     <MapPin size={16} className="absolute left-4 top-4 sm:top-5 text-slate-300" />
                     <textarea
                       className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm min-h-[80px] sm:min-h-[110px] placeholder:font-normal placeholder:text-slate-300"
-                      placeholder="Registry Address"
+                      placeholder="Address"
                       value={newCustomer.address}
                       onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
                     />
@@ -744,7 +780,7 @@ export default function OrderList() {
                     </h4>
                     <button 
                       type="button"
-                      onClick={addItem}
+                      onClick={() => setIsProductPickerOpen(true)}
                       className="px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg bg-white border border-slate-100 text-[8px] sm:text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
                     >
                       <Plus size={14} className="sm:w-4 sm:h-4 text-brand-primary" />
@@ -756,37 +792,35 @@ export default function OrderList() {
                     {orderForm.items.map((item, index) => (
                       <div key={index} className="bg-white sm:premium-card p-3 sm:p-8 rounded-xl sm:rounded-[2rem] border border-slate-100 sm:border-slate-100 relative group/item hover:bg-slate-50/20 transition-all">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-6 items-end">
-                          <div className="md:col-span-5">
-                            <div className="flex items-center justify-between mb-1 sm:mb-2">
-                              <label className="detail-label text-[8px] sm:text-[10px]">{t('product')}</label>
-                              <button 
-                                type="button"
-                                onClick={() => setIsQuickProductModalOpen(true)}
-                                className="text-[8px] sm:text-[9px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest sm:hidden"
-                              >
-                                <Plus size={8} />
-                                Asset
-                              </button>
-                            </div>
-                            <select
+                          <div className="md:col-span-4">
+                            <label className="detail-label text-[8px] sm:text-[10px] mb-1 sm:mb-2">{t('product')}</label>
+                            <input
                               required
+                              type="text"
                               className="w-full px-3 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-[10px] sm:text-sm h-11 sm:h-auto"
-                              value={item.productId}
-                              onChange={(e) => updateItem(index, 'productId', e.target.value)}
-                            >
-                              <option value="">{t('selectProduct')}</option>
-                              {products.map(p => <option key={p.id} value={p.id}>{p.name} ({t('stockLevel')}: {p.stock})</option>)}
-                            </select>
+                              value={item.productName}
+                              onChange={(e) => updateItem(index, 'productName', e.target.value)}
+                              placeholder="Product Name"
+                            />
                           </div>
-                          <div className="grid grid-cols-2 min-[440px]:grid-cols-3 md:col-span-6 gap-2 sm:gap-4">
+                          <div className="grid grid-cols-2 min-[440px]:grid-cols-4 md:col-span-7 gap-2 sm:gap-4">
                             <div>
                               <label className="detail-label text-[8px] sm:text-[10px]">{t('unitPrice')}</label>
                               <input
                                 required
                                 type="number"
-                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center sm:text-left"
+                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center"
                                 value={item.price || 0}
                                 onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
+                              />
+                            </div>
+                            <div>
+                              <label className="detail-label text-[8px] sm:text-[10px]">Discount</label>
+                              <input
+                                type="number"
+                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center"
+                                value={item.discount || 0}
+                                onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value) || 0)}
                               />
                             </div>
                             <div>
@@ -794,15 +828,15 @@ export default function OrderList() {
                               <input
                                 required
                                 type="number"
-                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center sm:text-left"
+                                className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-700 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center"
                                 value={item.quantity || 0}
                                 onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                               />
                             </div>
                             <div className="col-span-2 min-[440px]:col-span-1">
-                              <label className="detail-label text-[8px] sm:text-[10px] sm:hidden">{t('subtotal')}</label>
-                              <div className="px-2 sm:px-4 py-2 sm:py-3.5 bg-slate-900 text-white rounded-lg text-[10px] sm:text-sm font-black tabular-nums shadow-lg shadow-slate-100 truncate flex items-center justify-center sm:justify-start h-11 sm:h-auto">
-                                {formatCurrency(item.price * item.quantity)}
+                              <label className="detail-label text-[8px] sm:text-[10px] leading-tight">{t('subtotal')}</label>
+                              <div className="px-2 sm:px-4 py-2 sm:py-3.5 bg-slate-900 text-white rounded-lg text-[10px] sm:text-sm font-black tabular-nums shadow-lg shadow-slate-100 truncate flex items-center justify-center h-11 sm:h-auto">
+                                {formatCurrency((item.price - (item.discount || 0)) * item.quantity)}
                               </div>
                             </div>
                           </div>
@@ -827,16 +861,28 @@ export default function OrderList() {
                   </div>
                 </div>
 
-                <div className="sticky bottom-0 left-0 right-0 p-4 sm:p-0 bg-white sm:bg-transparent border-t border-slate-100 sm:border-none flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 sm:mt-12 bg-white/80 backdrop-blur-md sm:translate-y-0 translate-y-4">
-                  <div className="flex flex-col items-center sm:items-start">
-                    <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest sm:tracking-[0.2em] mb-0.5">{t('total')}</p>
-                    <h5 className="text-xl sm:text-4xl font-black text-brand-primary tracking-tighter tabular-nums leading-none">
-                      {formatCurrency(calculateTotal())}
-                    </h5>
+                <div className="sticky bottom-0 left-0 right-0 p-4 sm:p-6 bg-white sm:bg-slate-50/80 backdrop-blur-md border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-6 mt-8 sm:mt-12 rounded-b-[3.5rem]">
+                  <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
+                    <div className="flex flex-col">
+                      <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('total')}</p>
+                      <h5 className="text-xl sm:text-4xl font-black text-brand-primary tracking-tighter tabular-nums leading-none">
+                        {formatCurrency(calculateTotal())}
+                      </h5>
+                    </div>
+                    <div className="flex flex-col">
+                      <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Total Discount</p>
+                      <input 
+                        type="number"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm sm:text-lg font-black text-rose-600 focus:ring-4 focus:ring-rose-500/5 focus:border-rose-500 outline-none transition-all tabular-nums h-10 sm:h-auto"
+                        value={orderForm.totalDiscount || 0}
+                        onChange={(e) => setOrderForm({...orderForm, totalDiscount: parseFloat(e.target.value) || 0})}
+                        placeholder="Discount"
+                      />
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="flex-1 sm:w-40">
-                      <p className="text-[7px] sm:hidden font-black text-slate-300 uppercase tracking-widest mb-1 text-center">{t('paid')}</p>
+                      <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 sm:text-left text-center">{t('paid')}</p>
                       <input 
                         type="number"
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl px-2 sm:px-4 py-3 sm:py-4 text-base sm:text-xl font-black text-slate-900 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none transition-all tabular-nums text-center h-12 sm:h-auto"
@@ -846,7 +892,7 @@ export default function OrderList() {
                     </div>
                     <button 
                       type="submit" 
-                      className="flex-[1.5] sm:flex-none px-6 sm:px-12 py-3 sm:py-4 bg-slate-900 text-white rounded-xl sm:rounded-[2rem] font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 h-12 sm:h-auto"
+                      className="flex-1 sm:flex-none px-6 sm:px-12 py-3 sm:py-4 bg-slate-900 text-white rounded-xl sm:rounded-[2rem] font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 h-12 sm:h-auto"
                     >
                       {editingOrderId ? t('save') : t('newOrder')}
                     </button>
@@ -990,6 +1036,103 @@ export default function OrderList() {
           </div>
         </div>
       )}
+      {/* Product Picker Modal */}
+      <AnimatePresence>
+        {isProductPickerOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+              onClick={() => setIsProductPickerOpen(false)} 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.95 }} 
+              className="bg-white rounded-[3rem] w-full max-w-2xl h-[80vh] shadow-2xl relative z-10 flex flex-col overflow-hidden"
+            >
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center">
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Select Product</h3>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Available Items</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsProductPickerOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 flex-1 overflow-y-auto space-y-4">
+                {products.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-slate-400 font-bold tracking-widest text-xs uppercase">No products registered</p>
+                    <button 
+                      onClick={() => {
+                        setIsProductPickerOpen(false);
+                        setIsQuickProductModalOpen(true);
+                      }}
+                      className="mt-4 text-brand-primary font-black text-[10px] uppercase tracking-widest"
+                    >
+                      + Add New Asset
+                    </button>
+                  </div>
+                ) : (
+                  products.map(product => (
+                    <button
+                      key={product.id}
+                      onClick={() => addItem(product)}
+                      className="w-full p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-between group"
+                    >
+                      <div className="text-left">
+                        <p className="font-bold text-slate-900">{product.name}</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{product.code} • Stock: {product.stock}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-slate-900 tabular-nums">{formatCurrency(product.salePrice || product.price)}</p>
+                        <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Select Asset</span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {previewImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewImage(null)}
+              className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative z-10 max-w-4xl w-full aspect-auto rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <img src={previewImage} alt="Preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              <button 
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white transition-all focus:outline-none"
+              >
+                <X size={24} />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

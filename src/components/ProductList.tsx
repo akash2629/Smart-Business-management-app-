@@ -34,6 +34,8 @@ export default function ProductList() {
     code: '', 
     price: 0, 
     stock: 0,
+    buyPrice: 0,
+    salePrice: 0,
     images: []
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +149,8 @@ export default function ProductList() {
           code: formData.code,
           price: formData.price,
           stock: formData.stock,
+          buyPrice: formData.buyPrice || 0,
+          salePrice: formData.salePrice || 0,
           images: formData.images || []
         });
         toast.success('Product updated');
@@ -181,7 +185,8 @@ export default function ProductList() {
     const worksheet = XLSX.utils.json_to_sheet(products.map(p => ({
       'Product Name': p.name,
       'Barcode/Code': p.code,
-      'Price': p.price,
+      'Buy Price': p.buyPrice || 0,
+      'Sale Price': p.salePrice || 0,
       'Current Stock': p.stock
     })));
     const workbook = XLSX.utils.book_new();
@@ -217,7 +222,7 @@ export default function ProductList() {
           <button 
             onClick={() => {
               setEditingProduct(null);
-              setFormData({ name: '', code: '', price: 0, stock: 0 });
+              setFormData({ name: '', code: '', price: 0, stock: 0, buyPrice: 0, salePrice: 0 });
               setIsModalOpen(true);
             }}
             className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 font-bold text-white text-[10px] sm:text-base hover:opacity-90 transition-all shadow-lg active:scale-95"
@@ -249,7 +254,8 @@ export default function ProductList() {
               <tr className="bg-slate-50/50">
                 <th className="data-grid-header">{t('assetIdentifier')}</th>
                 <th className="data-grid-header">{t('registryCode')}</th>
-                <th className="data-grid-header">{t('unitValuation')}</th>
+                <th className="data-grid-header">Buy Price</th>
+                <th className="data-grid-header">Sale Price</th>
                 <th className="data-grid-header">{t('stockLevel')}</th>
                 <th className="data-grid-header text-right">{t('actions')}</th>
               </tr>
@@ -279,7 +285,8 @@ export default function ProductList() {
                       {product.code}
                     </span>
                   </td>
-                  <td className="px-6 py-5 font-bold text-slate-900 tabular-nums text-sm">{formatCurrency(product.price)}</td>
+                  <td className="px-6 py-5 font-bold text-slate-900 tabular-nums text-sm">{formatCurrency(product.buyPrice || 0)}</td>
+                  <td className="px-6 py-5 font-bold text-slate-900 tabular-nums text-sm">{formatCurrency(product.salePrice || 0)}</td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-3">
@@ -333,9 +340,9 @@ export default function ProductList() {
           {/* Mobile Detailed Flow (No Cards) */}
           <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Items Found</div>
             ) : filteredProducts.map((product) => (
               <div key={product.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
@@ -372,12 +379,16 @@ export default function ProductList() {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-2 gap-2 mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
                   <div className="flex flex-col">
-                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Unit Value</label>
-                    <span className="font-bold text-slate-900 text-xs tabular-nums">{formatCurrency(product.price)}</span>
+                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Buy Price</label>
+                    <span className="font-bold text-slate-900 text-xs tabular-nums">{formatCurrency(product.buyPrice || 0)}</span>
                   </div>
-                  <div className="text-right flex flex-col items-end">
+                  <div className="flex flex-col">
+                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Sale Price</label>
+                    <span className="font-bold text-slate-900 text-xs tabular-nums">{formatCurrency(product.salePrice || 0)}</span>
+                  </div>
+                  <div className="flex flex-col mt-2">
                     <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">In Stock</label>
                     <div className="flex items-center gap-2">
                        <div className={cn(
@@ -420,7 +431,7 @@ export default function ProductList() {
                     <Package size={20} className="sm:w-7 sm:h-7" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">{editingProduct ? t('edit') : t('newOrder')}</h3>
+                    <h3 className="text-sm sm:text-2xl font-bold text-slate-900 tracking-tight">{editingProduct ? t('edit') : 'Product Listing Add'}</h3>
                     <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">{t('manualEntry')}</p>
                   </div>
                 </div>
@@ -433,7 +444,7 @@ export default function ProductList() {
                   {/* Image Upload Section */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <label className="detail-label text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Asset Visuals</label>
+                      <label className="detail-label text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Photos</label>
                       <span className={cn(
                         "px-2 py-0.5 rounded-lg text-[7px] sm:text-[9px] font-black uppercase tracking-widest border",
                         (formData.images?.length || 0) < 6 
@@ -486,13 +497,13 @@ export default function ProductList() {
                   </div>
 
                   <div>
-                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('assetIdentifier')}</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">Product Name</label>
                     <div className="relative">
                       <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                       <input 
                         required
                         type="text" 
-                        placeholder={t('assetIdentifier')}
+                        placeholder="Product Name"
                         className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 text-xs sm:text-base h-11 sm:h-auto"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -500,13 +511,13 @@ export default function ProductList() {
                     </div>
                   </div>
                   <div>
-                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('registryCode')}</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">Item Code</label>
                     <div className="relative">
                        <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                       <input 
                         required
                         type="text" 
-                        placeholder="SKU-9982-X"
+                        placeholder="e.g. SKU-123"
                         className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 text-xs sm:text-base h-11 sm:h-auto"
                         value={formData.code}
                         onChange={(e) => setFormData({...formData, code: e.target.value})}
@@ -515,7 +526,7 @@ export default function ProductList() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
-                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('unitValuation')}</label>
+                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">Buy Price</label>
                       <div className="relative">
                         <BdtSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                         <input 
@@ -524,24 +535,39 @@ export default function ProductList() {
                           step="0.01"
                           placeholder="0.00"
                           className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
-                          value={formData.price || 0}
-                          onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                          value={formData.buyPrice || 0}
+                          onChange={(e) => setFormData({...formData, buyPrice: parseFloat(e.target.value) || 0})}
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">{t('stockLevel')}</label>
+                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">Sale Price</label>
                       <div className="relative">
-                        <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                        <BdtSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
                         <input 
                           required
                           type="number" 
-                          placeholder="0"
+                          step="0.01"
+                          placeholder="0.00"
                           className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
-                          value={formData.stock || 0}
-                          onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
+                          value={formData.salePrice || 0}
+                          onChange={(e) => setFormData({...formData, salePrice: parseFloat(e.target.value) || 0, price: parseFloat(e.target.value) || 0})}
                         />
                       </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">Stock</label>
+                    <div className="relative">
+                      <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      <input 
+                        required
+                        type="number" 
+                        placeholder="0"
+                        className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
+                        value={formData.stock || 0}
+                        onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
+                      />
                     </div>
                   </div>
                 </div>

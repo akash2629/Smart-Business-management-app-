@@ -34,6 +34,7 @@ export default function CustomerList() {
   const [customerPayments, setCustomerPayments] = useState<any[]>([]);
   const [formData, setFormData] = useState<Customer>({ name: '', phone: '', address: '' });
   const [profileTab, setProfileTab] = useState<'orders' | 'payments'>('orders');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -216,8 +217,8 @@ export default function CustomerList() {
   };
 
   const calculateTotalDue = () => {
-    const totalOrdered = customerOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-    const totalPaid = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalOrdered = customerOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalPaid = customerOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
     return totalOrdered - totalPaid;
   };
 
@@ -345,9 +346,9 @@ export default function CustomerList() {
           {/* Mobile Detailed Flow (No Cards) */}
           <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredCustomers.length === 0 ? (
-              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Customers Found</div>
             ) : filteredCustomers.map((customer) => (
               <div key={customer.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
@@ -585,16 +586,33 @@ export default function CustomerList() {
                             </span>
                           </div>
                           
-                          <div className="space-y-1.5 sm:space-y-2">
-                            {order.items?.map((item: any, idx: number) => (
-                              <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-[9px] sm:text-xs font-bold text-slate-600 px-3 sm:px-4 py-2 bg-slate-50 rounded-xl gap-1 sm:gap-0">
-                                <span className="text-slate-900 uppercase tracking-tight">{item.name}</span>
-                                <div className="flex justify-between sm:contents">
-                                  <span className="tabular-nums opacity-60 font-medium">{item.quantity} × {formatCurrency(item.price)}</span>
-                                  <span className="tabular-nums text-slate-900">{formatCurrency(item.quantity * item.price)}</span>
+                          <div className="space-y-1.5 sm:space-y-4">
+                            {order.items?.length > 0 ? (
+                              order.items.map((item: any, idx: number) => (
+                                <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-[9px] sm:text-xs font-bold text-slate-600 px-3 sm:px-4 py-2 bg-slate-50 rounded-xl gap-1 sm:gap-0">
+                                  <span className="text-slate-900 uppercase tracking-tight">{item.name}</span>
+                                  <div className="flex justify-between sm:contents">
+                                    <span className="tabular-nums opacity-60 font-medium">{item.quantity} × {formatCurrency(item.price)}</span>
+                                    <span className="tabular-nums text-slate-900">{formatCurrency(item.quantity * item.price)}</span>
+                                  </div>
                                 </div>
+                              ))
+                            ) : (
+                               <div className="px-3 sm:px-4 py-2 bg-slate-50 rounded-xl">
+                                 <p className="text-[9px] sm:text-xs font-bold text-slate-400 italic">{order.type} — {order.note || 'No additional notes'}</p>
+                               </div>
+                            )}
+
+                            {/* Order Images */}
+                            {order.images && order.images.length > 0 && (
+                              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-2">
+                                {order.images.map((img: string, i: number) => (
+                                  <div key={i} className="aspect-square rounded-lg overflow-hidden border border-slate-100 bg-white group cursor-pointer" onClick={() => setPreviewImage(img)}>
+                                    <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
 
                           <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2 sm:pt-4">
@@ -669,6 +687,35 @@ export default function CustomerList() {
                   {t('close')}
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewImage(null)}
+              className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative z-10 max-w-4xl w-full aspect-auto rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <img src={previewImage} alt="Preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              <button 
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white transition-all focus:outline-none"
+              >
+                <X size={24} />
+              </button>
             </motion.div>
           </div>
         )}

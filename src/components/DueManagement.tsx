@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, CreditCard, User, Wallet, History, ArrowRight, X, Download, Plus, Trash2, FileText } from 'lucide-react';
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
@@ -40,9 +40,19 @@ export default function DueManagement() {
   const [historyPayments, setHistoryPayments] = useState<any[]>([]);
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);
   const [paymentAmount, setPaymentAmount] = useState(0);
-  const [manualDue, setManualDue] = useState({ customerId: '', amount: 0, note: '' });
+  const [manualDue, setManualDue] = useState({ 
+    customerId: '', 
+    amount: 0, 
+    note: '',
+    images: [] as string[],
+    isNewCustomer: false,
+    newCustomer: { name: '', phone: '', address: '' }
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -234,9 +244,9 @@ export default function DueManagement() {
       worksheet['!cols'] = wscols;
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer_Financial_Registry');
-      XLSX.writeFile(workbook, `Customer_Deep_Audit_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Comprehensive XLSX report exported successfully');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer_Due_Report');
+      XLSX.writeFile(workbook, `Customer_Due_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Report exported successfully');
     } catch (error) {
       console.error(error);
       toast.error('Audit synthesis failed');
@@ -249,7 +259,7 @@ export default function DueManagement() {
     // Header
     doc.setFontSize(22);
     doc.setTextColor(15, 23, 42); // slate-900
-    doc.text('Due Management Audit Report', 105, 20, { align: 'center' });
+    doc.text('Financial Due Summary Report', 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139); // slate-500
@@ -285,6 +295,23 @@ export default function DueManagement() {
     toast.success('Professional PDF report generated');
   };
 
+  const toBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.setAttribute('crossOrigin', 'anonymous');
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.5)); // Low quality for PDF size
+      };
+      img.onerror = () => resolve('');
+      img.src = url;
+    });
+  };
+
   const exportCustomerDetailedPDF = async (record: DueRecord) => {
     if (!user) return;
     toast.info(`Generating deep audit for ${record.name}...`);
@@ -296,9 +323,9 @@ export default function DueManagement() {
       const oQ = query(collection(db, 'users', user.uid, 'orders'), where('customerId', '==', record.id));
 
       const [pSnap, oSnap] = await Promise.all([getDocs(pQ), getDocs(oQ)]);
-      const historyPayments = pSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const historyPayments = pSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }))
         .sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-      const historyOrders = oSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const historyOrders = oSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }))
         .sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
 
       const doc = new jsPDF() as any;
@@ -306,11 +333,11 @@ export default function DueManagement() {
       // Branding Header
       doc.setFontSize(24);
       doc.setTextColor(15, 23, 42);
-      doc.text('Customer Liquidity Audit', 105, 25, { align: 'center' });
+      doc.text('Customer Transaction Audit', 105, 25, { align: 'center' });
       
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text('SmartShop Enterprise Financial Registry', 105, 32, { align: 'center' });
+      doc.text('SmartShop Enterprise Financial System', 105, 32, { align: 'center' });
       
       // Customer Info Card
       doc.setDrawColor(241, 245, 249);
@@ -326,8 +353,8 @@ export default function DueManagement() {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(71, 85, 105);
       doc.text(`Mobile: ${customer?.phone || 'Not Registered'}`, 20, 62);
-      doc.text(`Locality: ${customer?.address || 'Not Registered'}`, 20, 68);
-      doc.text(`Report Ref: #${record.id.slice(0, 8)}`, 20, 74);
+      doc.text(`Address: ${customer?.address || 'Not Registered'}`, 20, 68);
+      doc.text(`Report ID: #${record.id.slice(0, 8)}`, 20, 74);
       
       // Totals on Right
       doc.setFontSize(10);
@@ -339,39 +366,88 @@ export default function DueManagement() {
       // Asset Acquisition Table
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('PRODUCT BUY HISTORY (ACQUISITIONS)', 14, 95);
+      doc.text('BILLING & ORDERS', 14, 95);
       
       autoTable(doc, {
         startY: 100,
-        head: [['Product Buy Date', 'Order ID', 'Category', 'Order Value', 'Status']],
+        head: [['Date', 'Type', 'Note', 'Amount', 'Status']],
         body: historyOrders.map((o: any) => [
-          o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'Manual Registry',
-          `#${o.id.slice(-6)}`,
-          o.type,
+          o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'Manual Entry',
+          o.type || 'Order',
+          o.note || '-',
           formatCurrency(o.totalAmount),
           o.status
         ]),
         headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8, cellPadding: 2 },
         margin: { top: 100 }
       });
 
       // Settlement History Table
-      const finalY = (doc as any).lastAutoTable.finalY + 15;
+      let finalY = (doc as any).lastAutoTable.finalY + 15;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('DUE PAID HISTORY (SETTLEMENTS)', 14, finalY);
+      doc.text('PAYMENT HISTORY', 14, finalY);
 
       autoTable(doc, {
         startY: finalY + 5,
-        head: [['Due Paid Date', 'Method', 'Transaction ID', 'Paid Money']],
+        head: [['Date', 'Method', 'Transaction ID', 'Paid Amount']],
         body: historyPayments.map((p: any) => [
-          p.paymentDate,
-          p.method,
+          p.paymentDate || 'N/A',
+          p.method || 'Cash',
           p.id.slice(0, 10),
           formatCurrency(p.amount)
         ]),
-        headStyles: { fillColor: [16, 185, 129] } // Emerald-500
+        headStyles: { fillColor: [16, 185, 129] },
+        styles: { fontSize: 8, cellPadding: 2 }
       });
+
+      // Visual Evidence Section (Images)
+      const imagesToProcess: {url: string, orderId: string, date: string}[] = [];
+      historyOrders.forEach((o: any) => {
+        if (o.images && Array.isArray(o.images)) {
+          o.images.forEach((img: string) => {
+            imagesToProcess.push({
+              url: img,
+              orderId: o.id.slice(-6),
+              date: o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'N/A'
+            });
+          });
+        }
+      });
+
+      if (imagesToProcess.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('VISUAL EVIDENCE (ENTRY PHOTOS)', 105, 15, { align: 'center' });
+        
+        let imgX = 20;
+        let imgY = 25;
+        const imgSize = 50;
+        const padding = 10;
+
+        for (let i = 0; i < imagesToProcess.length; i++) {
+          const imgData = await toBase64(imagesToProcess[i].url);
+          if (imgData) {
+            if (imgY + imgSize + 10 > 280) { // Page overflow check
+              doc.addPage();
+              imgY = 20;
+            }
+            
+            doc.addImage(imgData, 'JPEG', imgX, imgY, imgSize, imgSize);
+            doc.setFontSize(8);
+            doc.text(`Order: #${imagesToProcess[i].orderId}`, imgX, imgY + imgSize + 5);
+            doc.text(`Date: ${imagesToProcess[i].date}`, imgX, imgY + imgSize + 10);
+
+            imgX += imgSize + padding;
+            if (imgX + imgSize > 190) { // Row overflow check
+              imgX = 20;
+              imgY += imgSize + 25;
+            }
+          }
+        }
+      }
 
       doc.save(`Audit_${record.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
       toast.success('Detailed customer audit exported');
@@ -380,6 +456,7 @@ export default function DueManagement() {
       toast.error('Failed to synthesize detailed PDF');
     }
   };
+
 
   const viewCustomerXlsxPreview = async (record: DueRecord) => {
     if (!user) return;
@@ -449,42 +526,167 @@ export default function DueManagement() {
   };
 
   const deleteSourceOrder = async (orderId: string) => {
-    if (!confirm('Purging this source record will eliminate the associated debt. Continue?') || !user) return;
+    if (!confirm('Are you sure you want to delete this bill? This will remove the debt.') || !user) return;
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'orders', orderId));
-      toast.success('Source record purged');
+      toast.success('Bill Deleted');
       if (selectedCustomer) fetchHistory(selectedCustomer);
       fetchDues();
     } catch (error) {
-      toast.error('Purge failed');
+      toast.error('Delete failed');
     }
+  };
+
+  const getPayloadSize = (data: any) => {
+    return JSON.stringify(data).length;
+  };
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 480; // Small size for Firestore limits
+          const MAX_HEIGHT = 480;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.4)); // Low quality for bulk upload
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !user) return;
+
+    setUploading(true);
+    const newImages = [...(manualDue.images || [])];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        if (newImages.length >= 6) break;
+        const file = files[i];
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is too large`);
+          continue;
+        }
+        const compressed = await compressImage(file);
+        newImages.push(compressed);
+      }
+      setManualDue({ ...manualDue, images: newImages });
+      toast.success('Photos added');
+    } catch (error) {
+      toast.error('Could not save photos');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const newImages = [...(manualDue.images || [])];
+    newImages.splice(index, 1);
+    setManualDue({ ...manualDue, images: newImages });
   };
 
   const handleManualDue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !manualDue.customerId || manualDue.amount <= 0) return;
+    if (!user || manualDue.amount <= 0 || isSaving) return;
 
+    setIsSaving(true);
     try {
-      const customer = customers.find(c => c.id === manualDue.customerId);
-      await addDoc(collection(db, 'users', user.uid, 'orders'), {
+      const batch = writeBatch(db);
+      let finalCustomerId = manualDue.customerId;
+      let finalCustomerName = '';
+
+      if (manualDue.isNewCustomer) {
+        if (!manualDue.newCustomer.name) {
+          setIsSaving(false);
+          return toast.error('Add customer name');
+        }
+        
+        const customerRef = doc(collection(db, 'users', user.uid, 'customers'));
+        batch.set(customerRef, {
+          ...manualDue.newCustomer,
+          ownerId: user.uid,
+          createdAt: serverTimestamp()
+        });
+        finalCustomerId = customerRef.id;
+        finalCustomerName = manualDue.newCustomer.name;
+      } else {
+        if (!manualDue.customerId) {
+          setIsSaving(false);
+          return toast.error('Choose a customer');
+        }
+        const customer = customers.find(c => c.id === manualDue.customerId);
+        finalCustomerName = customer?.name || 'Customer';
+      }
+
+      const payloadSize = getPayloadSize(manualDue);
+      if (payloadSize > 800000) {
+        setIsSaving(false);
+        return toast.error('Too many photos. Try removing some.');
+      }
+
+      const orderRef = doc(collection(db, 'users', user.uid, 'orders'));
+      batch.set(orderRef, {
         ownerId: user.uid,
-        customerId: manualDue.customerId,
-        customerName: customer?.name || 'Unknown',
+        customerId: finalCustomerId,
+        customerName: finalCustomerName,
         totalAmount: manualDue.amount,
         paidAmount: 0,
         status: 'Due',
-        type: 'Opening Balance',
+        type: 'Entry',
         note: manualDue.note,
+        images: manualDue.images || [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      toast.success('Manual due entry committed');
+      await batch.commit();
+
+      toast.success('Bill Saved');
       setIsManualModalOpen(false);
-      setManualDue({ customerId: '', amount: 0, note: '' });
+      setManualDue({ 
+        customerId: '', 
+        amount: 0, 
+        note: '', 
+        images: [], 
+        isNewCustomer: false, 
+        newCustomer: { name: '', phone: '', address: '' } 
+      });
       fetchDues();
     } catch (error) {
-      toast.error('Registry failed');
+      console.error('Save error:', error);
+      toast.error('Save failed. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -659,9 +861,9 @@ export default function DueManagement() {
           {/* Mobile Detailed Flow (No Cards) */}
           <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Syncing Universe...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredDues.length === 0 ? (
-              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">Registry Empty</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Dues Found</div>
             ) : filteredDues.map((record) => (
               <div key={record.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
@@ -887,6 +1089,21 @@ export default function DueManagement() {
                           <div>
                             <p className="font-bold text-slate-900 text-xs sm:text-sm">{order.type} <span className="text-slate-300 font-mono text-[9px]">#{order.id.slice(-6)}</span></p>
                             <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">{order.createdAt?.toDate ? new Date(order.createdAt.toDate()).toLocaleDateString() : 'Manual Legacy'}</p>
+                            
+                            {/* Entry Photos in History */}
+                            {order.images && order.images.length > 0 && (
+                              <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1 invisible-scrollbar">
+                                {order.images.map((img: string, i: number) => (
+                                  <div 
+                                    key={i} 
+                                    className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => setPreviewImage(img)}
+                                  >
+                                    <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-2 sm:pt-0">
                             <div className="text-right">
@@ -1021,7 +1238,7 @@ export default function DueManagement() {
                   {/* Asset Acquisition Block */}
                   <div className="flex border-b border-slate-50 group hover:bg-slate-50/50">
                     <div className="w-10 sm:w-12 py-4 px-2 sm:px-4 border-r border-slate-200 text-slate-300 text-center font-bold">04</div>
-                    <div className="w-40 sm:w-64 py-4 px-4 sm:px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">{t('orderRegistry')}</div>
+                    <div className="w-40 sm:w-64 py-4 px-4 sm:px-6 border-r border-slate-200 font-bold text-slate-900 bg-slate-50/30">All Bills</div>
                     <div className="flex-1 py-4 px-4 sm:px-6">
                       <div className="flex flex-wrap gap-2">
                         {historyOrders.map((o: any) => (
@@ -1120,18 +1337,90 @@ export default function DueManagement() {
               </div>
               <form onSubmit={handleManualDue} id="manual-due-form" className="p-4 sm:p-10 space-y-6 sm:space-y-8 overflow-y-auto flex-1 pb-20 sm:pb-10">
                 <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1 text-slate-400 uppercase font-black tracking-widest">{t('selectCustomer')}</label>
-                    <select 
-                      required
-                      className="w-full px-4 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm h-11 sm:h-auto"
-                      value={manualDue.customerId}
-                      onChange={(e) => setManualDue({...manualDue, customerId: e.target.value})}
+                  {/* Customer Selection Toggle */}
+                  <div className="flex bg-slate-50 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setManualDue({ ...manualDue, isNewCustomer: false })}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        !manualDue.isNewCustomer ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
+                      )}
                     >
-                      <option value="">{t('selectCustomer')}</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                      {t('selectCustomer')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setManualDue({ ...manualDue, isNewCustomer: true })}
+                      className={cn(
+                        "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                        manualDue.isNewCustomer ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
+                      )}
+                    >
+                      New Customer
+                    </button>
                   </div>
+
+                  {manualDue.isNewCustomer ? (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                      <div>
+                        <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 px-1 text-slate-400 uppercase font-black tracking-widest">{t('customer')} Name</label>
+                        <input 
+                          required
+                          type="text"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-xs sm:text-sm h-11"
+                          placeholder="Full Name"
+                          value={manualDue.newCustomer.name}
+                          onChange={(e) => setManualDue({
+                            ...manualDue, 
+                            newCustomer: { ...manualDue.newCustomer, name: e.target.value }
+                          })}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 px-1 text-slate-400 uppercase font-black tracking-widest">{t('mobile')}</label>
+                          <input 
+                            type="tel"
+                            className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-xs sm:text-sm h-11"
+                            placeholder="017..."
+                            value={manualDue.newCustomer.phone}
+                            onChange={(e) => setManualDue({
+                              ...manualDue, 
+                              newCustomer: { ...manualDue.newCustomer, phone: e.target.value }
+                            })}
+                          />
+                        </div>
+                        <div>
+                          <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 px-1 text-slate-400 uppercase font-black tracking-widest">{t('address')}</label>
+                          <input 
+                            type="text"
+                            className="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 text-xs sm:text-sm h-11"
+                            placeholder="City/Area"
+                            value={manualDue.newCustomer.address}
+                            onChange={(e) => setManualDue({
+                              ...manualDue, 
+                              newCustomer: { ...manualDue.newCustomer, address: e.target.value }
+                            })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1 text-slate-400 uppercase font-black tracking-widest">{t('selectCustomer')}</label>
+                      <select 
+                        required={!manualDue.isNewCustomer}
+                        className="w-full px-4 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm h-11 sm:h-auto"
+                        value={manualDue.customerId}
+                        onChange={(e) => setManualDue({...manualDue, customerId: e.target.value})}
+                      >
+                        <option value="">{t('selectCustomer')}</option>
+                        {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+
                   <div>
                     <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1 text-slate-400 uppercase font-black tracking-widest">{t('total')}</label>
                     <div className="relative">
@@ -1154,6 +1443,64 @@ export default function DueManagement() {
                       onChange={(e) => setManualDue({...manualDue, note: e.target.value})}
                     />
                   </div>
+
+                  {/* Image Upload Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="detail-label text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Photos</label>
+                      <span className="px-2 py-0.5 rounded-lg text-[7px] sm:text-[9px] font-black uppercase tracking-widest border bg-emerald-50 text-emerald-600 border-emerald-100">
+                        {manualDue.images.length} / 6
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-3">
+                      {manualDue.images.map((url, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-100 group">
+                          <img 
+                            src={url} 
+                            alt="" 
+                            className="w-full h-full object-cover cursor-pointer" 
+                            referrerPolicy="no-referrer"
+                            onClick={() => setPreviewImage(url)}
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-1 right-1 w-6 h-6 bg-rose-600/90 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {manualDue.images.length < 6 && (
+                        <button
+                          type="button"
+                          disabled={uploading}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="aspect-square rounded-xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-1 text-slate-300 hover:text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group"
+                        >
+                          {uploading ? (
+                            <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <Plus size={16} className="group-hover:scale-110 transition-transform" />
+                              <span className="text-[7px] font-black uppercase tracking-widest">Add Picture</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    
+                    <input 
+                      ref={fileInputRef}
+                      type="file" 
+                      multiple 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
                 </div>
                 <div className="pt-2 sm:pt-4 flex gap-3 sm:gap-4 shrink-0 mt-auto">
                     <button 
@@ -1166,12 +1513,49 @@ export default function DueManagement() {
                     <button 
                     type="submit"
                     form="manual-due-form"
-                    className="flex-1 px-4 py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl h-11 sm:h-auto"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl h-11 sm:h-auto disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                    {t('save')}
+                    {isSaving ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      t('save')
+                    )}
                     </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewImage(null)}
+              className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative z-10 max-w-4xl w-full aspect-auto rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <img src={previewImage} alt="Preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              <button 
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white transition-all"
+              >
+                <X size={24} />
+              </button>
             </motion.div>
           </div>
         )}

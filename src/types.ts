@@ -4,6 +4,8 @@ export interface Product {
   code: string;
   price: number;
   stock: number;
+  buyPrice?: number;
+  salePrice?: number;
   images?: string[];
   ownerId?: string;
 }
@@ -22,6 +24,7 @@ export interface Order {
   customerName?: string;
   totalAmount: number;
   paidAmount: number;
+  totalDiscount?: number;
   status: 'Paid' | 'Due';
   type: 'Invoice' | 'Quotation' | 'Purchase' | 'Opening Balance';
   createdAt?: string;
@@ -32,8 +35,10 @@ export interface OrderItem {
   id?: string;
   orderId?: string;
   productId: string;
+  productName?: string;
   quantity: number;
   price: number;
+  discount?: number;
   ownerId?: string;
 }
 
