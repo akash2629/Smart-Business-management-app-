@@ -19,10 +19,22 @@ export interface Customer {
   ownerId?: string;
 }
 
+export interface Supplier {
+  id?: string;
+  name: string;
+  phone: string;
+  shopName: string;
+  shopAddress: string;
+  email?: string;
+  ownerId?: string;
+}
+
 export interface Order {
   id?: string;
-  customerId: string;
+  customerId?: string;
   customerName?: string;
+  supplierId?: string;
+  supplierName?: string;
   totalAmount: number;
   paidAmount: number;
   totalDiscount?: number;
@@ -50,6 +62,18 @@ export interface Payment {
   amount: number;
   method: string;
   paymentDate: string;
+  ownerId?: string;
+}
+
+export interface Purchase {
+  id?: string;
+  supplierId: string;
+  supplierName?: string;
+  totalAmount: number;
+  paidAmount: number;
+  status: 'Paid' | 'Due';
+  note?: string;
+  createdAt?: string;
   ownerId?: string;
 }
 

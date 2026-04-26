@@ -3,7 +3,7 @@ import { Plus, Search, Eye, Trash2, ShoppingCart, User, Calendar, FileText, X, P
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
-import { Order, Customer, Product, OrderItem } from '../types';
+import { Order, Customer, Product, OrderItem, Supplier } from '../types';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -31,6 +31,7 @@ export default function OrderList() {
   const { t } = useLanguage();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -39,6 +40,7 @@ export default function OrderList() {
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [isQuickProductModalOpen, setIsQuickProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   
   // Quick Product State
   const [quickProduct, setQuickProduct] = useState<Product>({
@@ -51,7 +53,7 @@ export default function OrderList() {
   const handleQuickProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (!quickProduct.name || !quickProduct.price) return toast.error('Name and Price are required');
+    if (!quickProduct.name || !quickProduct.price) return toast.error(t('nameAndPriceRequired'));
 
     try {
       const docRef = await addDoc(collection(db, 'users', user.uid, 'products'), {
@@ -59,7 +61,7 @@ export default function OrderList() {
         ownerId: user.uid
       });
       
-      toast.success('Product registered successfully');
+      toast.success(t('assetCataloged'));
       
       // Refresh products
       const productsSnap = await getDocs(collection(db, 'users', user.uid, 'products'));
@@ -84,12 +86,14 @@ export default function OrderList() {
   // New/Editing Order State
   const [orderForm, setOrderForm] = useState<{
     customerId: string;
+    supplierId: string;
     type: 'Invoice' | 'Quotation' | 'Purchase';
     paidAmount: number;
     totalDiscount: number;
     items: { productId: string, productName: string, quantity: number, price: number, discount: number }[];
   }>({
     customerId: '',
+    supplierId: '',
     type: 'Invoice',
     paidAmount: 0,
     totalDiscount: 0,
@@ -99,6 +103,7 @@ export default function OrderList() {
   const resetOrderForm = () => {
     setOrderForm({
       customerId: '',
+      supplierId: '',
       type: 'Invoice',
       paidAmount: 0,
       totalDiscount: 0,
@@ -127,11 +132,13 @@ export default function OrderList() {
     try {
       const ordersQ = query(collection(db, 'users', user.uid, 'orders'), orderBy('createdAt', 'desc'));
       const customersQ = collection(db, 'users', user.uid, 'customers');
+      const suppliersQ = collection(db, 'users', user.uid, 'suppliers');
       const productsQ = collection(db, 'users', user.uid, 'products');
 
-      const [ordersSnap, customersSnap, productsSnap] = await Promise.all([
+      const [ordersSnap, customersSnap, suppliersSnap, productsSnap] = await Promise.all([
         getDocs(ordersQ),
         getDocs(customersQ),
+        getDocs(suppliersQ),
         getDocs(productsQ)
       ]);
 
@@ -140,12 +147,15 @@ export default function OrderList() {
         ...o,
         customerName: o.customerName,
         customerId: o.customerId,
+        supplierName: o.supplierName,
+        supplierId: o.supplierId,
         totalAmount: o.totalAmount,
         paidAmount: o.paidAmount,
         createdAt: o.createdAt?.toDate?.()?.toISOString() || o.createdAt
       })));
 
       setCustomers(customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[]);
+      setSuppliers(suppliersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Supplier[]);
       setProducts(productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[]);
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, path);
@@ -162,12 +172,18 @@ export default function OrderList() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (!orderForm.customerId) return toast.error('Please select a customer');
+    if (orderForm.type === 'Purchase') {
+      if (!orderForm.supplierId) return toast.error(t('selectSupplier'));
+    } else {
+      if (!orderForm.customerId) return toast.error(t('selectCustomer'));
+    }
+    
     if (orderForm.items.length === 0) return toast.error('Please add at least one product');
 
     const totalAmount = calculateTotal();
     const status = orderForm.paidAmount >= totalAmount ? 'Paid' : 'Due';
     const customer = customers.find(c => c.id === orderForm.customerId);
+    const supplier = suppliers.find(s => s.id === orderForm.supplierId);
 
     try {
       const batch = writeBatch(db);
@@ -178,8 +194,6 @@ export default function OrderList() {
 
       if (editingOrderId) {
         orderRef = doc(ordersColRef, editingOrderId);
-        // For updates, we delete existing items first and re-add them 
-        // to simplify the "sync" of items list
         const itemsSnap = await getDocs(collection(orderRef, 'items'));
         itemsSnap.docs.forEach(d => batch.delete(d.ref));
       } else {
@@ -187,8 +201,10 @@ export default function OrderList() {
       }
       
       const orderData = {
-        customerId: orderForm.customerId,
-        customerName: customer?.name || 'Unknown',
+        customerId: orderForm.type === 'Purchase' ? null : orderForm.customerId,
+        customerName: orderForm.type === 'Purchase' ? null : customer?.name || 'Unknown',
+        supplierId: orderForm.type === 'Purchase' ? orderForm.supplierId : null,
+        supplierName: orderForm.type === 'Purchase' ? supplier?.name || 'Unknown' : null,
         totalAmount,
         paidAmount: orderForm.paidAmount,
         totalDiscount: orderForm.totalDiscount,
@@ -218,7 +234,7 @@ export default function OrderList() {
 
       await batch.commit();
       
-      toast.success(editingOrderId ? 'Order updated successfully' : 'Order created successfully');
+      toast.success(editingOrderId ? t('orderUpdated') : t('orderCreated'));
       setIsModalOpen(false);
       resetOrderForm();
       fetchData();
@@ -290,13 +306,13 @@ export default function OrderList() {
       batch.delete(orderRef);
       await batch.commit();
       
-      toast.success('Order purged and stock adjusted');
+      toast.success(t('orderPurged'));
       setIsDeleteModalOpen(false);
       setOrderToDelete(null);
       fetchData();
     } catch (error) {
       console.error(error);
-      toast.error('Purge failed');
+      toast.error(t('purgeFailed'));
     }
   };
 
@@ -371,22 +387,22 @@ export default function OrderList() {
   const exportToPDF = (order: Order) => {
     const doc = new jsPDF() as any;
     doc.setFontSize(20);
-    doc.text('SmartShop Invoice', 105, 20, { align: 'center' });
+    doc.text(t('systemIdentifier'), 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.text(`Order ID: #${order.id}`, 20, 40);
-    doc.text(`Date: ${formatDate(order.createdAt!)}`, 20, 45);
-    doc.text(`Customer: ${order.customerName}`, 20, 50);
-    doc.text(`Type: ${order.type}`, 20, 55);
+    doc.text(`${t('orderId')}: #${order.id}`, 20, 40);
+    doc.text(`${t('date')}: ${formatDate(order.createdAt!)}`, 20, 45);
+    doc.text(`${t('customer')}: ${order.customerName}`, 20, 50);
+    doc.text(`${t('status')}: ${order.type}`, 20, 55);
     
     // This is a simplified version, ideally we'd fetch order items for the specific order
     autoTable(doc, {
       startY: 65,
-      head: [['Product', 'Price', 'Qty', 'Total']],
+      head: [[t('product'), t('unitPrice'), t('quantity'), t('total')]],
       body: [
-        ['Total Order Amount', '', '', formatCurrency(order.totalAmount)],
-        ['Paid Amount', '', '', formatCurrency(order.paidAmount)],
-        ['Balance Due', '', '', formatCurrency(order.totalAmount - order.paidAmount)],
+        [t('totalOrderAmount'), '', '', formatCurrency(order.totalAmount)],
+        [t('paidAmountLabel'), '', '', formatCurrency(order.paidAmount)],
+        [t('balanceDue'), '', '', formatCurrency(order.totalAmount - order.paidAmount)],
       ],
     });
     
@@ -478,11 +494,11 @@ export default function OrderList() {
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">Syncing...</td>
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse">{t('syncing')}</td>
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center text-slate-400 font-medium">Clear Ledger. No records present.</td>
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-400 font-medium">{t('clearLedger')}</td>
                 </tr>
               ) : filteredOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group text-sm">
@@ -490,9 +506,9 @@ export default function OrderList() {
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-xs">
-                        {order.customerName?.charAt(0)}
+                        {(order.type === 'Purchase' ? order.supplierName : order.customerName)?.charAt(0)}
                       </div>
-                      <span className="font-bold text-slate-900 tracking-tight">{order.customerName}</span>
+                      <span className="font-bold text-slate-900 tracking-tight">{order.type === 'Purchase' ? order.supplierName : order.customerName}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-slate-500 font-medium">
@@ -543,19 +559,19 @@ export default function OrderList() {
           {/* Mobile Detailed Flow (No Cards) */}
           <div className="md:hidden divide-y divide-slate-100 bg-white">
             {loading ? (
-              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
+              <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">{t('loading')}</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Bills Found</div>
+              <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">{t('noBillsFound')}</div>
             ) : filteredOrders.map((order) => (
               <div key={order.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-xl shadow-slate-200">
-                      {order.customerName?.charAt(0)}
+                      {(order.type === 'Purchase' ? order.supplierName : order.customerName)?.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[12px] tracking-tight">{order.customerName}</p>
-                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">#{order.id?.slice(-6)} • {order.type === 'Quotation' ? 'Quote' : 'Invoice'}</span>
+                      <p className="font-black text-slate-900 text-[12px] tracking-tight">{order.type === 'Purchase' ? order.supplierName : order.customerName}</p>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">#{order.id?.slice(-6)} • {order.type === 'Quotation' ? 'Quote' : order.type === 'Purchase' ? 'Purchase' : 'Invoice'}</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -647,7 +663,7 @@ export default function OrderList() {
                       required
                       type="text"
                       className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm h-11 sm:h-auto placeholder:font-normal placeholder:text-slate-300"
-                      placeholder="Search or Enter Name"
+                      placeholder={t('searchOrEnterName')}
                       value={newCustomer.name}
                       onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
                     />
@@ -672,7 +688,7 @@ export default function OrderList() {
                     <MapPin size={16} className="absolute left-4 top-4 sm:top-5 text-slate-300" />
                     <textarea
                       className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 text-xs sm:text-sm min-h-[80px] sm:min-h-[110px] placeholder:font-normal placeholder:text-slate-300"
-                      placeholder="Address"
+                      placeholder={t('address')}
                       value={newCustomer.address}
                       onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
                     />
@@ -717,7 +733,7 @@ export default function OrderList() {
                       {editingOrderId ? t('edit') + ' ' + t('orders') : t('newOrder')}
                     </h3>
                     <p className="text-[8px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 sm:mt-1">
-                      {editingOrderId ? `Modifying Record ${editingOrderId.slice(-6)}` : t('financialReports')}
+                      {editingOrderId ? `${t('modifyingRecord')} ${editingOrderId.slice(-6)}` : t('financialReports')}
                     </p>
                   </div>
                 </div>
@@ -729,26 +745,45 @@ export default function OrderList() {
               <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-4 sm:space-y-12 bg-white pb-32 sm:pb-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-10">
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between mb-1.5 sm:mb-2 px-1">
-                      <label className="detail-label text-[9px] sm:text-[10px]">{t('selectCustomer')}</label>
-                      <button 
-                        type="button"
-                        onClick={() => setIsCustomerModalOpen(true)}
-                        className="text-[9px] sm:text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
-                      >
-                        <Plus size={10} />
-                        {t('addCustomer')}
-                      </button>
-                    </div>
-                    <select 
-                      required
-                      className="w-full px-4 sm:px-5 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all cursor-pointer text-[10px] sm:text-sm h-11 sm:h-auto"
-                      value={orderForm.customerId}
-                      onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
-                    >
-                      <option value="">{t('selectCustomer')}</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
-                    </select>
+                    {orderForm.type === 'Purchase' ? (
+                      <>
+                        <div className="flex items-center justify-between mb-1.5 sm:mb-2 px-1">
+                          <label className="detail-label text-[9px] sm:text-[10px]">{t('selectSupplier')}</label>
+                        </div>
+                        <select 
+                          required
+                          className="w-full px-4 sm:px-5 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all cursor-pointer text-[10px] sm:text-sm h-11 sm:h-auto"
+                          value={orderForm.supplierId}
+                          onChange={(e) => setOrderForm({...orderForm, supplierId: e.target.value})}
+                        >
+                          <option value="">{t('selectSupplier')}</option>
+                          {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.shopName})</option>)}
+                        </select>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-1.5 sm:mb-2 px-1">
+                          <label className="detail-label text-[9px] sm:text-[10px]">{t('selectCustomer')}</label>
+                          <button 
+                            type="button"
+                            onClick={() => setIsCustomerModalOpen(true)}
+                            className="text-[9px] sm:text-[10px] font-black text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-widest"
+                          >
+                            <Plus size={10} />
+                            {t('addCustomer')}
+                          </button>
+                        </div>
+                        <select 
+                          required
+                          className="w-full px-4 sm:px-5 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all cursor-pointer text-[10px] sm:text-sm h-11 sm:h-auto"
+                          value={orderForm.customerId}
+                          onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
+                        >
+                          <option value="">{t('selectCustomer')}</option>
+                          {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
+                        </select>
+                      </>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="detail-label text-[9px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('paymentMethod')}</label>
@@ -802,7 +837,7 @@ export default function OrderList() {
                               className="w-full px-3 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-700 transition-all text-[10px] sm:text-sm h-11 sm:h-auto"
                               value={item.productName}
                               onChange={(e) => updateItem(index, 'productName', e.target.value)}
-                              placeholder="Product Name"
+                              placeholder={t('productName')}
                             />
                           </div>
                           <div className="grid grid-cols-2 min-[440px]:grid-cols-4 md:col-span-7 gap-2 sm:gap-4">
@@ -817,7 +852,7 @@ export default function OrderList() {
                               />
                             </div>
                             <div>
-                              <label className="detail-label text-[8px] sm:text-[10px]">Discount</label>
+                              <label className="detail-label text-[8px] sm:text-[10px]">{t('discount')}</label>
                               <input
                                 type="number"
                                 className="w-full px-2 sm:px-4 py-2 sm:py-3.5 rounded-lg border border-slate-100 bg-slate-50/50 outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums h-11 sm:h-auto text-center"
@@ -857,7 +892,7 @@ export default function OrderList() {
                     {orderForm.items.length === 0 && (
                       <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/30">
                         <Package size={48} className="mx-auto mb-4 text-slate-200" />
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Null Assets Selected</p>
+                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('noProductsSelected')}</p>
                       </div>
                     )}
                   </div>
@@ -872,13 +907,13 @@ export default function OrderList() {
                       </h5>
                     </div>
                     <div className="flex flex-col">
-                      <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Total Discount</p>
+                      <p className="text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{t('totalDiscount')}</p>
                       <input 
                         type="number"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm sm:text-lg font-black text-rose-600 focus:ring-4 focus:ring-rose-500/5 focus:border-rose-500 outline-none transition-all tabular-nums h-10 sm:h-auto"
                         value={orderForm.totalDiscount || 0}
                         onChange={(e) => setOrderForm({...orderForm, totalDiscount: parseFloat(e.target.value) || 0})}
-                        placeholder="Discount"
+                        placeholder={t('discount')}
                       />
                     </div>
                   </div>
@@ -1018,7 +1053,7 @@ export default function OrderList() {
               </div>
               <h3 className="text-xl font-bold text-slate-900">{t('confirmDelete')}</h3>
               <p className="text-sm text-slate-500 font-medium">
-                {t('confirmDelete')}
+                {t('confirmDeleteDescription')}
               </p>
             </div>
             <div className="p-6 bg-slate-50/50 flex gap-3">
@@ -1061,8 +1096,8 @@ export default function OrderList() {
                     <Package size={24} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Select Product</h3>
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Available Items</p>
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">{t('selectProduct')}</h3>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{t('availableItems')}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsProductPickerOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
@@ -1073,7 +1108,7 @@ export default function OrderList() {
               <div className="p-8 flex-1 overflow-y-auto space-y-4">
                 {products.length === 0 ? (
                   <div className="text-center py-10">
-                    <p className="text-slate-400 font-bold tracking-widest text-xs uppercase">No products registered</p>
+                    <p className="text-slate-400 font-bold tracking-widest text-xs uppercase">{t('noProductsRegistered')}</p>
                     <button 
                       onClick={() => {
                         setIsProductPickerOpen(false);
@@ -1081,7 +1116,7 @@ export default function OrderList() {
                       }}
                       className="mt-4 text-brand-primary font-black text-[10px] uppercase tracking-widest"
                     >
-                      + Add New Asset
+                      + {t('addNewAsset')}
                     </button>
                   </div>
                 ) : (
@@ -1091,9 +1126,22 @@ export default function OrderList() {
                       onClick={() => addItem(product)}
                       className="w-full p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-between group"
                     >
-                      <div className="text-left">
-                        <p className="font-bold text-slate-900">{product.name}</p>
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{product.code} • Stock: {product.stock}</p>
+                      <div className="flex items-center gap-4">
+                        <div 
+                          onMouseEnter={() => product.images && product.images.length > 0 && setHoveredImage(product.images[0])}
+                          onMouseLeave={() => setHoveredImage(null)}
+                          className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 overflow-hidden shadow-sm hover:scale-110 transition-transform cursor-crosshair"
+                        >
+                          {product.images && product.images.length > 0 ? (
+                            <img src={product.images[0]} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <Package size={20} />
+                          )}
+                        </div>
+                        <div className="text-left">
+                          <p className="font-bold text-slate-900">{product.name}</p>
+                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{product.code} • Stock: {product.stock}</p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="font-black text-slate-900 tabular-nums">{formatCurrency(product.salePrice || product.price)}</p>
@@ -1109,6 +1157,24 @@ export default function OrderList() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {hoveredImage && (
+          <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="w-[50vw] h-[50vh] bg-white rounded-[2.5rem] shadow-2xl border-4 border-white overflow-hidden"
+            >
+              <img 
+                src={hoveredImage} 
+                alt="Quick View" 
+                className="w-full h-full object-contain bg-slate-50" 
+                referrerPolicy="no-referrer" 
+              />
+            </motion.div>
+          </div>
+        )}
+
         {previewImage && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <motion.div 

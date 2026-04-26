@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Language = 'en';
+type Language = 'en' | 'bn';
 
 interface LanguageContextType {
   language: Language;
+  setLanguage: (lang: Language) => void;
   t: (key: string) => string;
 }
 
@@ -50,10 +51,45 @@ const translations = {
     close: 'Close',
     actions: 'Actions',
     loading: 'Loading...',
+    syncing: 'Syncing...',
+    clearLedger: 'Clear Ledger. No records present.',
+    noBillsFound: 'No Bills Found',
     exportExcel: 'Excel Report',
     exportPdf: 'PDF Report',
     manualEntry: 'New Bill',
     history: 'History',
+    searchOrEnterName: 'Search or Enter Name',
+    addressPlaceholder: 'Operating Location Details...',
+    assetCataloged: 'Asset cataloged successfully',
+    productName: 'Product Name',
+    unitPricePlaceholder: 'Unit Price',
+    initialStockPlaceholder: 'Initial Stock',
+    registerAsset: 'Register Asset',
+    quickProductCapture: 'Quick Product Capture',
+    registerCustomer: 'Register Customer',
+    executionEntry: 'Execute Entry',
+    fullName: 'Full Name',
+    contactReference: 'Contact Reference',
+    territoryAddress: 'Territory / Address',
+    nameAndPriceRequired: 'Name and Price are required',
+    printInvoice: 'Print Invoice',
+    balanceDue: 'Balance Due',
+    totalOrderAmount: 'Total Order Amount',
+    paidAmountLabel: 'Paid Amount',
+    systemIdentifier: 'SmartShop Invoice',
+    discount: 'Discount',
+    totalDiscount: 'Total Discount',
+    noProductsSelected: 'No Products Selected',
+    assetIdentifier: 'Asset Identifier',
+    unitValuation: 'Unit Valuation',
+    stockLevel: 'Stock Level',
+    registryCode: 'Registry Code',
+    availableItems: 'Available Items',
+    noProductsRegistered: 'No products registered',
+    addNewAsset: 'Add New Asset',
+    customerCaptured: 'Customer Captured',
+    modifyingRecord: 'Modifying Record',
+    confirmDeleteDescription: 'This action cannot be undone. All associated inventory records will be adjusted.',
 
     // Orders
     orderRegistry: 'Bill Registry',
@@ -75,6 +111,26 @@ const translations = {
     subtotal: 'Subtotal',
     selectProduct: 'Select Product',
     selectCustomer: 'Select Customer',
+    orderPurged: 'Order purged and stock adjusted',
+    purgeFailed: 'Purge failed',
+    assetName: 'Asset Name',
+    totalValuation: 'Total Valuation',
+    commit: 'Commit',
+    documentClass: 'Document Class',
+    invoiceNode: 'Invoice Node',
+    marketEmission: 'Market Emission',
+    recipientProfile: 'Recipient Profile',
+    targetCustomer: 'Target Customer',
+    intelligence: 'Intelligence',
+    aggregateReports: 'Aggregate Reports',
+    revenueAllocation: 'Revenue Allocation',
+    journal: 'Journal',
+    recentInteraction: 'Recent Interaction',
+    awaitingTransactions: 'Awaiting Transactions',
+    noOrdersFound: 'No Orders Found',
+    selectSupplier: 'Select Supplier',
+    orderUpdated: 'Order updated successfully',
+    orderCreated: 'Order created successfully',
 
     // Customers
     clientNetwork: 'Customers',
@@ -88,10 +144,6 @@ const translations = {
     productCatalog: 'Items',
     inventoryGlobal: 'Manage your items and stock levels.',
     addAsset: 'Add Item',
-    assetIdentifier: 'Item Name',
-    registryCode: 'Code',
-    unitValuation: 'Price',
-    stockLevel: 'Stock',
     lowStock: 'Low Stock',
     outOfStock: 'Out of Stock',
 
@@ -127,18 +179,249 @@ const translations = {
     confirmDelete: 'Are you sure you want to delete this?',
     welcome: 'Welcome',
     systemUpdate: 'Update',
-  }
+    invoice: 'Invoice',
+    quotation: 'Quotation',
+    purchase: 'Purchase',
+    unpaid: 'Unpaid',
+    partial: 'Partial',
+
+    // Suppliers
+    suppliers: 'Suppliers',
+    manageSuppliers: 'Manage supplier contact and shop details.',
+    addSupplier: 'Add Supplier',
+    shopName: 'Shop Name',
+    shopAddress: 'Shop Address',
+    supplierName: 'Supplier Name',
+    email: 'Email',
+    
+    // Purchases
+    purchases: 'Purchases',
+    managePurchases: 'View and manage product purchase history.',
+    newPurchase: 'New Purchase',
+    buyProduct: 'Buy Product',
+    note: 'Note',
+    ready: 'Ready',
+    paidAmount: 'Paid Amount',
+    id: 'ID',
+    optional: 'Optional',
+    buyPrice: 'Buy Price',
+  },
+  bn: {
+    // Navigation
+    dashboard: 'ড্যাশবোর্ড',
+    orders: 'বিলসমূহ',
+    customers: 'গ্রাহক',
+    products: 'পণ্য',
+    dues: 'বাকি',
+    dailyRecord: 'দৈনিক রেকর্ড',
+    signOut: 'লগ আউট',
+    settings: 'সেটিংস',
+    enterpriseAccess: 'লগইন',
+
+    // Dashboard
+    executiveOverview: 'সারাংশ',
+    realTimePerformance: 'ব্যবসার সংক্ষিপ্ত বিবরণ এবং পরিসংখ্যান।',
+    totalRevenue: 'মোট বিক্রয়',
+    totalOrders: 'মোট বিল',
+    totalCustomers: 'মোট গ্রাহক',
+    inventoryAssets: 'স্টক ভ্যালু',
+    outstandingCredit: 'মোট বাকি',
+    capturedRevenue: 'মোট সংগ্রহ',
+    salesPerformance: 'বিক্রয় চার্ট',
+    revenueTrends: 'সাম্প্রতিক কার্যক্রম',
+    quickActions: 'কুইক মেনু',
+    addNewOrder: 'বিল তৈরি করুন',
+    registerProduct: 'আইটেম যোগ করুন',
+    customerDirectory: 'গ্রাহক তালিকা',
+    financialReports: 'রিপোর্ট',
+    todaySales: 'আজকের বিক্রয়',
+    todayDue: 'আজকের বাকি',
+    monthlySales: 'এই মাসের বিক্রয়',
+    monthlyDue: 'এই মাসের বাকি',
+
+    // Global
+    search: 'খুঁজুন...',
+    edit: 'সম্পাদনা',
+    delete: 'মুছে ফেলুন',
+    save: 'সংরক্ষণ',
+    cancel: 'বাতিল',
+    close: 'বন্ধ করুন',
+    actions: 'অ্যাকশন',
+    loading: 'লোড হচ্ছে...',
+    syncing: 'সিংকিং হচ্ছে...',
+    clearLedger: 'কোন রেকর্ড পাওয়া যায়নি।',
+    noBillsFound: 'কোন বিল পাওয়া যায়নি',
+    exportExcel: 'এক্সেল রিপোর্ট',
+    exportPdf: 'পিডিএফ রিপোর্ট',
+    manualEntry: 'নতুন বিল',
+    history: 'ইতিহাস',
+    searchOrEnterName: 'খুঁজুন অথবা নাম লিখুন',
+    addressPlaceholder: 'ঠিকানার বিস্তারিত...',
+    assetCataloged: 'পণ্য সফলভাবে রেজিস্টার করা হয়েছে',
+    productName: 'পণ্যের নাম',
+    unitPricePlaceholder: 'একক মূল্য',
+    initialStockPlaceholder: 'প্রাথমিক স্টক',
+    registerAsset: 'পণ্য রেজিস্টার করুন',
+    quickProductCapture: 'কুইক প্রোডাক্ট এন্ট্রি',
+    registerCustomer: 'গ্রাহক রেজিস্টার করুন',
+    executionEntry: 'এন্ট্রি করুন',
+    fullName: 'পূর্ণ নাম',
+    contactReference: 'যোগাযোগ নম্বর',
+    territoryAddress: 'এলাকা / ঠিকানা',
+    nameAndPriceRequired: 'নাম এবং মূল্য আবশ্যক',
+    printInvoice: 'ইনভয়েস প্রিন্ট করুন',
+    balanceDue: 'বাকি পরিমাণ',
+    totalOrderAmount: 'মোট অর্ডারের পরিমাণ',
+    paidAmountLabel: 'পরিশোধিত টাকা',
+    systemIdentifier: 'স্মার্টশপ ইনভয়েস',
+    discount: 'ডিসকাউন্ট',
+    totalDiscount: 'মোট ডিসকাউন্ট',
+    noProductsSelected: 'কোন পণ্য নির্বাচন করা হয়নি',
+    assetIdentifier: 'পণ্যের পরিচয়',
+    unitValuation: 'একক মূল্যায়ন',
+    stockLevel: 'স্টক লেভেল',
+    registryCode: 'রেজিস্ট্রি কোড',
+    availableItems: 'উপলব্ধ পণ্য',
+    noProductsRegistered: 'কোন পণ্য রেজিস্টার করা নেই',
+    addNewAsset: 'নতুন পণ্য যোগ করুন',
+    customerCaptured: 'গ্রাহক যুক্ত করা হয়েছে',
+    modifyingRecord: 'রেকর্ড সংশোধন করা হচ্ছে',
+    confirmDeleteDescription: 'এই পদক্ষেপটি ফিরিয়ে আনা যাবে না। সম্পর্কিত ইনভেন্টরি রেকর্ডগুলো স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে।',
+
+    // Orders
+    orderRegistry: 'বিল রেজিস্ট্রি',
+    manageSales: 'আপনার সব বিক্রয় বিল দেখুন এবং পরিচালনা করুন।',
+    newOrder: 'বিল তৈরি করুন',
+    orderId: 'বিল আইডি',
+    customer: 'গ্রাহক',
+    date: 'তারিখ',
+    total: 'মোট',
+    paid: 'পরিশোধিত',
+    due: 'বাকি',
+    status: 'অবস্থা',
+    paymentMethod: 'পদ্ধতি',
+    items: 'আইটেম',
+    addItems: 'আইটেম যোগ করুন',
+    product: 'পণ্য',
+    quantity: 'পরিমাণ',
+    unitPrice: 'মূল্য',
+    subtotal: 'উপ-মোট',
+    selectProduct: 'পণ্য নির্বাচন করুন',
+    selectCustomer: 'গ্রাহক নির্বাচন করুন',
+    orderPurged: 'অর্ডার মুছে ফেলা হয়েছে এবং স্টক অ্যাডজাস্ট করা হয়েছে',
+    purgeFailed: 'মুছে ফেলতে ব্যর্থ হয়েছে',
+    assetName: 'পণ্যের নাম',
+    totalValuation: 'মোট মূল্যায়ন',
+    commit: 'সাবমিট করুন',
+    documentClass: 'ডকুমেন্ট টাইপ',
+    invoiceNode: 'ইনভয়েস নোড',
+    marketEmission: 'মার্কেট এমিশন',
+    recipientProfile: 'প্রাপকের প্রোফাইল',
+    targetCustomer: 'টার্গেট কাস্টমার',
+    intelligence: 'ইন্টেলিজেন্স',
+    aggregateReports: 'রিপোর্টসমূহ',
+    revenueAllocation: 'রাজস্ব বন্টন',
+    journal: 'জার্নাল',
+    recentInteraction: 'সাম্প্রতিক কার্যক্রম',
+    awaitingTransactions: 'লেনদেনের অপেক্ষায়',
+    noOrdersFound: 'কোন অর্ডার পাওয়া যায়নি',
+    selectSupplier: 'সরবরাহকারী নির্বাচন করুন',
+    orderUpdated: 'অর্ডার সফলভাবে আপডেট করা হয়েছে',
+    orderCreated: 'অর্ডার সফলভাবে তৈরি করা হয়েছে',
+
+    // Customers
+    clientNetwork: 'গ্রাহকবৃন্দ',
+    manageRelationships: 'গ্রাহক তালিকা এবং ফোন নম্বর পরিচালনা করুন।',
+    addCustomer: 'গ্রাহক যোগ করুন',
+    mobile: 'মোবাইল',
+    address: 'ঠিকানা',
+    joinDate: 'যোগদানের তারিখ',
+
+    // Products
+    productCatalog: 'আইটেমসমূহ',
+    inventoryGlobal: 'আপনার আইটেম এবং স্টকের পরিমাণ পরিচালনা করুন।',
+    addAsset: 'আইটেম যোগ করুন',
+    lowStock: 'স্টক কম',
+    outOfStock: 'স্টক নেই',
+
+    // Dues
+    dueManagement: 'বাকি ব্যবস্থাপনা',
+    dueRegistry: 'বিল তালিকা',
+    trackOutstanding: 'গ্রাহকদের কাছে পাওনা টাকা ট্র্যাক করুন।',
+    totalOutstanding: 'মোট বাকি',
+    debtorNetwork: 'বাকি তালিকা',
+    averageRisk: 'মোট ঝুঁকি',
+    collect: 'সংগ্রহ',
+    paymentLedger: 'পেমেন্ট রেকর্ড',
+    outstandingObligations: 'পাওনা টাকা',
+    inflowHistory: 'সংগ্রহের ইতিহাস',
+    recordCollection: 'পেমেন্ট রেকর্ড করুন',
+    paymentHistory: 'ইতিহাস',
+    dataPreview: 'প্রিভিউ',
+    financialDataPreview: 'পেমেন্ট প্রিভিউ',
+    financialOverview: 'ওভারভিউ',
+    dataRecordDetails: 'বিস্তারিত',
+    category: 'বিভাগ',
+    noData: 'কোন রেকর্ড পাওয়া যায়নি',
+    cash: 'নগদ',
+
+    // Daily Record
+    dailyOperational: 'দৈনিক কার্যক্রম',
+    liquidMonitoring: 'দৈনিক নগদ সংগ্রহের রেকর্ড।',
+    transactionVolume: 'বিল সংখ্যা',
+    dailyLiquidity: 'আজ সংগ্রহ',
+    auditTrail: 'অ্যাক্টিভিটি লগ',
+
+    // Common Phrases
+    confirmDelete: 'আপনি কি নিশ্চিত যে আপনি এটি মুছে ফেলতে চান?',
+    welcome: 'স্বাগতম',
+    systemUpdate: 'আপডেট',
+    invoice: 'ইনভয়েস',
+    quotation: 'কোটেশন',
+    purchase: 'ক্রয়',
+    unpaid: 'অপরিশোধিত',
+    partial: 'আংশিক',
+
+    // Suppliers
+    suppliers: 'সরবরাহকারী',
+    manageSuppliers: 'সরবরাহকারীর যোগাযোগ এবং দোকানের তথ্য পরিচালনা করুন।',
+    addSupplier: 'সরবরাহকারী যোগ করুন',
+    shopName: 'দোকানের নাম',
+    shopAddress: 'দোকানের ঠিকানা',
+    supplierName: 'সরবরাহকারীর নাম',
+    email: 'ইমেইল',
+    
+    // Purchases
+    purchases: 'ক্রয়সমূহ',
+    managePurchases: 'পণ্যের ক্রয় ইতিহাস দেখুন এবং পরিচালনা করুন।',
+    newPurchase: 'নতুন ক্রয়',
+    buyProduct: 'পণ্য কিনুন',
+    note: 'নোট',
+    ready: 'প্রস্তুত',
+    paidAmount: 'পরিশোধিত টাকা',
+    id: 'আইডি',
+    optional: 'ঐচ্ছিক',
+    buyPrice: 'ক্রয় মূল্য',
+  },
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [language, setLanguage] = useState<Language>(() => {
+    return (localStorage.getItem('app-language') as Language) || 'en';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('app-language', language);
+  }, [language]);
+
   const t = (key: string) => {
-    return (translations.en as any)[key] || key;
+    return (translations[language] as any)[key] || (translations.en as any)[key] || key;
   };
 
   return (
-    <LanguageContext.Provider value={{ language: 'en', t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );

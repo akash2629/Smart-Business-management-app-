@@ -43,7 +43,7 @@ service cloud.firestore {
       // Reset Sessions
       match /reset_sessions/{sessionId} {
         allow get: if isOwner(userId);
-        allow create: if isOwner(userId) 
+        allow create, update: if isOwner(userId) 
           && incoming().code is string && incoming().code.size() == 6
           && incoming().expiry is number
           && incoming().email == request.auth.token.email;
@@ -52,27 +52,27 @@ service cloud.firestore {
 
       // Settings
       match /settings/{settingId} {
-        allow read: if isOwner(userId);
+        allow read, list: if isOwner(userId);
         allow write: if isOwner(userId) && isValidId(settingId);
       }
 
       // Products
       match /products/{productId} {
-        allow read: if isOwner(userId);
+        allow read, list: if isOwner(userId);
         allow create: if isOwner(userId) && isValidProduct(incoming());
         allow update: if isOwner(userId) && isValidProduct(incoming())
           && (
             // Action: Stock Update (most common)
-            incoming().diff(existing()).affectedKeys().hasOnly(['stock']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) ||
             // Action: Edit Product
-            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'price', 'stock', 'images', 'buyPrice', 'salePrice', 'stockAlert'])
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'code', 'price', 'stock', 'images', 'buyPrice', 'salePrice', 'stockAlert'])
           );
         allow delete: if isOwner(userId);
       }
 
       function isValidProduct(data) {
         return data.name is string && data.name.size() >= 1 && data.name.size() <= 200
-          && data.code is string && data.code.size() <= 100
+          && (!data.keys().hasAny(['code']) || (data.code is string && data.code.size() <= 100))
           && data.price is number && data.price >= 0
           && data.stock is number
           && (!data.keys().hasAny(['buyPrice']) || data.buyPrice is number)
@@ -83,7 +83,7 @@ service cloud.firestore {
 
       // Customers
       match /customers/{customerId} {
-        allow read: if isOwner(userId);
+        allow read, list: if isOwner(userId);
         allow create: if isOwner(userId) && isValidCustomer(incoming());
         allow update: if isOwner(userId) && isValidCustomer(incoming());
         allow delete: if isOwner(userId);
@@ -91,24 +91,23 @@ service cloud.firestore {
 
       function isValidCustomer(data) {
         return data.name is string && data.name.size() >= 1 && data.name.size() <= 100
-          && (!data.keys().hasAny(['phone']) || (data.phone is string && data.phone.size() <= 20))
-          && (!data.keys().hasAny(['address']) || (data.address is string && data.address.size() <= 500));
+          && (!data.keys().hasAny(['phone']) || (data.phone is string && data.phone.size() <= 64))
+          && (!data.keys().hasAny(['address']) || (data.address is string && data.address.size() <= 2000));
       }
 
       // Orders
       match /orders/{orderId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidOrder(incoming())
-          && existsAfter(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidOrder(incoming());
         allow update: if isOwner(userId) && isValidOrder(incoming())
           && (
-            // Action: Payment Update
-            incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt', 'totalDiscount'])
+            // Action: Payment Update or Status Update
+            request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'status', 'updatedAt', 'totalDiscount'])
           );
         allow delete: if isOwner(userId);
 
         match /items/{itemId} {
-          allow read: if isOwner(userId);
+          allow read, list: if isOwner(userId);
           allow write: if isOwner(userId) && isValidOrderItem(incoming());
         }
       }
@@ -123,7 +122,7 @@ service cloud.firestore {
       }
 
       function isValidOrderItem(data) {
-        return data.productId is string && isValidId(data.productId)
+        return data.productId is string && (data.productId == '' || isValidId(data.productId))
           && data.quantity is number && data.quantity >= 0
           && data.price is number && data.price >= 0
           && (!data.keys().hasAny(['discount']) || data.discount is number)
@@ -132,9 +131,8 @@ service cloud.firestore {
 
       // Payments
       match /payments/{paymentId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidPayment(incoming())
-          && existsAfter(/databases/$(database)/documents/users/$(userId)/customers/$(incoming().customerId));
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidPayment(incoming());
         allow delete: if isOwner(userId);
       }
 
@@ -142,6 +140,46 @@ service cloud.firestore {
         return data.customerId is string && isValidId(data.customerId)
           && data.amount is number && data.amount >= 0
           && data.paymentDate is string;
+      }
+
+      // Suppliers
+      match /suppliers/{supplierId} {
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSupplier(incoming());
+        allow update: if isOwner(userId) && isValidSupplier(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      function isValidSupplier(data) {
+        return data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+          && data.phone is string && data.phone.size() <= 64
+          && data.shopName is string && data.shopName.size() <= 200
+          && (!data.keys().hasAny(['shopAddress']) || (data.shopAddress is string && data.shopAddress.size() <= 2000))
+          && (!data.keys().hasAny(['email']) || (data.email is string && data.email.size() <= 256));
+      }
+
+      // Purchases
+      match /purchases/{purchaseId} {
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidPurchase(incoming());
+        allow update: if isOwner(userId) && isValidPurchase(incoming())
+          && (
+            request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'status', 'updatedAt', 'note'])
+          );
+        allow delete: if isOwner(userId);
+
+        match /items/{itemId} {
+          allow read, list: if isOwner(userId);
+          allow write: if isOwner(userId) && isValidOrderItem(incoming());
+        }
+      }
+
+      function isValidPurchase(data) {
+        return data.supplierId is string && isValidId(data.supplierId)
+          && data.totalAmount is number && data.totalAmount >= 0
+          && data.paidAmount is number && data.paidAmount >= 0
+          && data.status in ['Paid', 'Due']
+          && (!data.keys().hasAny(['note']) || data.note is string);
       }
     }
   }

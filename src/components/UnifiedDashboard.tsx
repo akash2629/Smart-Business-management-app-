@@ -281,7 +281,7 @@ export default function UnifiedDashboard() {
             <div className="w-3 sm:w-6 h-[1.5px] bg-brand-primary"></div>
             Management Terminal
           </div>
-          <h1 className="text-sm sm:text-4xl font-serif font-black text-slate-900 tracking-tighter leading-none">Unified Command</h1>
+          <h1 className="text-sm sm:text-4xl font-serif font-black text-slate-900 tracking-tighter leading-none">SmartShop</h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Real-Time Intelligence & Operations</p>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-4">
@@ -306,9 +306,9 @@ export default function UnifiedDashboard() {
         ) : (
           <>
             <StatCard title={t('todaySales')} value={formatCurrency(data?.todaySales || 0)} icon={TrendingUp} color="bg-brand-primary" />
-            <StatCard title="Revenue" value={formatCurrency(data?.sales || 0)} icon={TrendingUp} color="bg-indigo-600" />
-            <StatCard title="Credit" value={formatCurrency(data?.due || 0)} icon={Clock} color="bg-rose-500" />
-            <StatCard title="Stock" value={data?.products || 0} icon={Package} color="bg-amber-500" />
+            <StatCard title={t('totalRevenue')} value={formatCurrency(data?.sales || 0)} icon={TrendingUp} color="bg-indigo-600" />
+            <StatCard title={t('totalDue')} value={formatCurrency(data?.due || 0)} icon={Clock} color="bg-rose-500" />
+            <StatCard title={t('products')} value={data?.products || 0} icon={Package} color="bg-amber-500" />
           </>
         )}
       </div>
@@ -326,8 +326,8 @@ export default function UnifiedDashboard() {
                   <ShoppingCart size={14} className="sm:w-[18px] sm:h-[18px]" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-xl font-bold text-slate-900 tracking-tight">Invoice Node</h2>
-                  <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">Market Emission</p>
+                  <h2 className="text-sm sm:text-xl font-bold text-slate-900 tracking-tight">{t('invoiceNode')}</h2>
+                  <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('marketEmission')}</p>
                 </div>
               </div>
               <div className="flex gap-1 sm:gap-2">
@@ -335,7 +335,7 @@ export default function UnifiedDashboard() {
                     <Users size={10} className="sm:w-[12px] sm:h-[12px]" /> {t('addCustomer').split(' ')[0]}
                  </button>
                  <button onClick={() => setIsQuickProductModalOpen(true)} className="flex items-center justify-center gap-1.5 px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
-                    <Package size={10} className="sm:w-[12px] sm:h-[12px]" /> + Asset
+                    <Package size={10} className="sm:w-[12px] sm:h-[12px]" /> + {t('product')}
                  </button>
               </div>
             </div>
@@ -343,19 +343,19 @@ export default function UnifiedDashboard() {
             <form onSubmit={handleOrderSubmit} className="p-3 sm:p-8 space-y-4 sm:space-y-8 bg-white">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
                 <div className="md:col-span-2">
-                  <label className="detail-label text-[7px] sm:text-[9px] mb-1 sm:mb-2 px-1">Recipient Profile</label>
+                  <label className="detail-label text-[7px] sm:text-[9px] mb-1 sm:mb-2 px-1">{t('recipientProfile')}</label>
                   <select 
                     required
                     className="w-full px-3 sm:px-5 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary outline-none font-bold text-slate-700 transition-all cursor-pointer text-[10px] sm:text-base h-11 sm:h-auto"
                     value={orderForm.customerId}
                     onChange={(e) => setOrderForm({...orderForm, customerId: e.target.value})}
                   >
-                    <option value="">Select Target Customer</option>
+                    <option value="">{t('targetCustomer')}</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="detail-label text-[7px] sm:text-[9px] mb-1 sm:mb-2 px-1">Document Class</label>
+                  <label className="detail-label text-[7px] sm:text-[9px] mb-1 sm:mb-2 px-1">{t('documentClass')}</label>
                   <div className="flex gap-2">
                     {['Invoice', 'Quotation'].map(type => (
                       <button
@@ -377,10 +377,10 @@ export default function UnifiedDashboard() {
               <div className="space-y-4 sm:space-y-4">
                 <div className="flex items-center justify-between mb-1 sm:mb-2 px-1">
                   <h3 className="text-[8px] sm:text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5 sm:gap-2">
-                    <Layers size={10} className="sm:w-[12px] sm:h-[12px] text-slate-300" /> All Items
+                    <Layers size={10} className="sm:w-[12px] sm:h-[12px] text-slate-300" /> {t('items')}
                   </h3>
                   <button type="button" onClick={addItem} className="text-[7px] sm:text-[10px] font-black text-brand-primary border-b border-brand-primary/20 hover:border-brand-primary pb-0.5 tracking-widest uppercase">
-                    Add Entry +
+                    {t('addItems')} +
                   </button>
                 </div>
                 
@@ -388,20 +388,20 @@ export default function UnifiedDashboard() {
                   {orderForm.items.map((item, index) => (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-end bg-slate-50/20 p-4 sm:p-4 rounded-xl sm:rounded-[1.5rem] border border-slate-100 group hover:border-slate-200 transition-colors relative">
                       <div className="md:col-span-6">
-                        <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 sm:hidden px-1">Asset</label>
+                        <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 sm:hidden px-1">{t('product')}</label>
                         <select
                           required
                           className="w-full px-3 py-2.5 rounded-lg border border-slate-100 bg-white focus:border-brand-primary outline-none font-bold text-slate-700 text-[10px] sm:text-sm h-11 sm:h-auto"
                           value={item.productId}
                           onChange={(e) => updateItem(index, 'productId', e.target.value)}
                         >
-                          <option value="">Asset Name</option>
+                          <option value="">{t('assetName')}</option>
                           {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </div>
                       <div className="grid grid-cols-2 min-[440px]:grid-cols-3 md:col-span-4 gap-3">
                         <div>
-                          <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 sm:hidden px-1">Price</label>
+                          <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 sm:hidden px-1">{t('unitPrice')}</label>
                           <input
                             type="number"
                             className="w-full px-2 py-2.5 rounded-lg border border-slate-100 bg-white outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums text-center h-11 sm:h-auto"
@@ -410,7 +410,7 @@ export default function UnifiedDashboard() {
                           />
                         </div>
                         <div>
-                          <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 sm:hidden px-1">Qty</label>
+                          <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 sm:hidden px-1">{t('quantity')}</label>
                           <input
                             type="number"
                             className="w-full px-2 py-2.5 rounded-lg border border-slate-100 bg-white outline-none font-bold text-slate-900 text-[10px] sm:text-sm tabular-nums text-center h-11 sm:h-auto"
@@ -419,7 +419,7 @@ export default function UnifiedDashboard() {
                           />
                         </div>
                         <div className="col-span-2 min-[440px]:col-span-1 md:hidden">
-                           <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 px-1">Subtotal</label>
+                           <label className="detail-label text-[7px] sm:text-[9px] mb-1.5 px-1">{t('subtotal')}</label>
                            <div className="px-2 py-2.5 bg-slate-900 text-white rounded-lg text-[10px] font-black text-center h-11 flex items-center justify-center">
                               {formatCurrency(item.price * item.quantity)}
                            </div>
@@ -437,12 +437,12 @@ export default function UnifiedDashboard() {
 
               <div className="bg-slate-900 rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-8 shadow-2xl relative overflow-hidden">
                 <div className="flex flex-col items-center sm:items-start w-full sm:w-auto">
-                   <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-1 sm:mb-1 text-center sm:text-left">Total Valuation</p>
+                   <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-1 sm:mb-1 text-center sm:text-left">{t('totalValuation')}</p>
                    <h3 className="text-2xl sm:text-4xl font-black tracking-tighter tabular-nums text-brand-accent truncate max-w-full leading-none">{formatCurrency(calculateTotal())}</h3>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                    <div className="flex-1 sm:w-40">
-                      <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-1 sm:hidden text-center">Paid Amount</p>
+                      <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-1 sm:hidden text-center">{t('paidAmount')}</p>
                       <input 
                         type="number"
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-xl sm:text-xl font-black outline-none focus:border-brand-accent transition-all tabular-nums text-center h-12 sm:h-auto"
@@ -451,7 +451,7 @@ export default function UnifiedDashboard() {
                       />
                    </div>
                    <button type="submit" className="px-6 sm:px-6 py-2 sm:py-4 bg-brand-accent text-slate-900 rounded-xl font-black text-xs sm:text-[10px] uppercase tracking-widest sm:tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/20 h-12 sm:h-auto">
-                      Commit
+                      {t('commit')}
                    </button>
                 </div>
                 {/* Visual decoration for compact mobile view */}
@@ -464,8 +464,8 @@ export default function UnifiedDashboard() {
           <section className="bg-white sm:premium-card p-4 sm:p-8 border-b border-slate-100 sm:border-none">
             <div className="flex items-center justify-between mb-4 sm:mb-8">
               <div>
-                <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Intelligence</h3>
-                <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Aggregate Reports</p>
+                <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">{t('intelligence')}</h3>
+                <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('aggregateReports')}</p>
               </div>
               <button 
                 onClick={() => {
@@ -502,8 +502,8 @@ export default function UnifiedDashboard() {
           {/* Sales Trends Chart */}
           <section className="bg-white sm:premium-card p-4 sm:p-8 border-b border-slate-100 sm:border-none">
             <div className="mb-6 sm:mb-10">
-              <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Performance</h3>
-              <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenue Allocation</p>
+              <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">{t('salesPerformance')}</h3>
+              <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('revenueAllocation')}</p>
             </div>
             <div className="h-48 sm:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -527,8 +527,8 @@ export default function UnifiedDashboard() {
           {/* Intelligence Reports */}
           <section className="bg-white sm:premium-card p-4 sm:p-8 flex flex-col h-full border-b border-slate-100 sm:border-none">
             <div className="mb-3 sm:mb-8">
-              <h3 className="text-sm sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1">Journal</h3>
-              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest text-wrap">Recent Interaction</p>
+              <h3 className="text-sm sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1">{t('journal')}</h3>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest text-wrap">{t('recentInteraction')}</p>
             </div>
             <div className="space-y-2 sm:space-y-4 flex-1">
               {recentOrders.map((o) => (
@@ -553,7 +553,7 @@ export default function UnifiedDashboard() {
               {recentOrders.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 py-10">
                    <Clock size={30} className="mb-2" />
-                   <p className="text-[8px] font-black uppercase tracking-widest">Awaiting Transactions</p>
+                   <p className="text-[8px] font-black uppercase tracking-widest">{t('awaitingTransactions')}</p>
                 </div>
               )}
             </div>
@@ -623,7 +623,7 @@ export default function UnifiedDashboard() {
                     <UserIcon size={20} className="sm:w-7 sm:h-7" />
                   </div>
                   <div>
-                    <h2 className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight">Register Customer</h2>
+                    <h2 className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight">{t('registerCustomer')}</h2>
                     <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('addCustomer')}</p>
                   </div>
                 </div>
@@ -643,7 +643,7 @@ export default function UnifiedDashboard() {
                     remaining_balance: 0,
                     createdAt: serverTimestamp()
                   });
-                  toast.success('Customer Captured');
+                  toast.success(t('assetCataloged'));
                   setIsCustomerModalOpen(false);
                   
                   // Refetch and auto-select
@@ -651,21 +651,21 @@ export default function UnifiedDashboard() {
                   setOrderForm(prev => ({ ...prev, customerId: docRef.id }));
                   
                 } catch (err) {
-                  toast.error('Registration Failed');
+                  toast.error(t('operationFailed'));
                 }
               }} className="p-4 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto flex-1 pb-20 sm:pb-10">
                 <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">Full Name</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('fullName')}</label>
                     <input 
                       required 
-                      placeholder="e.g. John Doe" 
+                      placeholder={t('fullName')} 
                       className="w-full px-4 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50/50 border border-slate-100 outline-none font-bold text-[10px] sm:text-sm h-11 sm:h-auto focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all" 
                       onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} 
                     />
                   </div>
                   <div>
-                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">Contact Reference</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('contactReference')}</label>
                     <input 
                       required
                       placeholder="e.g. +880 1XXX XXXXXX" 
@@ -674,9 +674,9 @@ export default function UnifiedDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">Territory / Address</label>
+                    <label className="detail-label text-[8px] sm:text-[10px] mb-1.5 sm:mb-2 px-1">{t('territoryAddress')}</label>
                     <textarea 
-                      placeholder="Operating Location Details..." 
+                      placeholder={t('addressPlaceholder')} 
                       className="w-full px-4 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50/50 border border-slate-100 outline-none font-bold text-[10px] sm:text-sm min-h-[80px] sm:min-h-[120px] focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all" 
                       onChange={e => setNewCustomer({...newCustomer, address: e.target.value})} 
                     />
@@ -684,7 +684,7 @@ export default function UnifiedDashboard() {
                 </div>
                 <div className="pt-2 sm:pt-4 shrink-0 mt-auto">
                   <button type="submit" className="w-full py-3.5 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest text-[10px] sm:text-xs hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 h-12 sm:h-auto">
-                    Execute Entry
+                    {t('executionEntry')}
                   </button>
                 </div>
               </form>
@@ -692,14 +692,14 @@ export default function UnifiedDashboard() {
           </div>
         )}
 
-        {isQuickProductModalOpen && (
+         {isQuickProductModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center sm:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsQuickProductModalOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white rounded-none sm:rounded-[3rem] w-full max-w-md shadow-2xl relative z-10 overflow-hidden h-full sm:h-auto flex flex-col">
               <div className="p-4 sm:p-10 border-b border-slate-50 flex items-center justify-between bg-white sm:bg-transparent shrink-0">
                  <div>
-                    <h2 className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight">Quick Product Capture</h2>
-                    <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Register Asset</p>
+                    <h2 className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight">{t('quickProductCapture')}</h2>
+                    <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{t('registerAsset')}</p>
                  </div>
                  <button onClick={() => setIsQuickProductModalOpen(false)} className="text-slate-300 p-2"><X size={18} /></button>
               </div>
@@ -707,15 +707,15 @@ export default function UnifiedDashboard() {
                 e.preventDefault();
                 if (!user) return;
                 await addDoc(collection(db, 'users', user.uid, 'products'), { ...quickProduct, ownerId: user.uid });
-                toast.success('Asset Cataloged');
+                toast.success(t('assetCataloged'));
                 setIsQuickProductModalOpen(false);
                 fetchStaticData();
               }} className="p-4 sm:p-10 space-y-4 sm:space-y-6 flex-1 overflow-y-auto pb-20 sm:pb-10">
-                <input required placeholder="Product Name" className="w-full px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm h-12 sm:h-auto" onChange={e => setQuickProduct({...quickProduct, name: e.target.value})} />
-                <input required type="number" placeholder="Unit Price" className="w-full px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm h-12 sm:h-auto" value={quickProduct.price || 0} onChange={e => setQuickProduct({...quickProduct, price: parseFloat(e.target.value) || 0})} />
-                <input required type="number" placeholder="Initial Stock" className="w-full px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm h-12 sm:h-auto" value={quickProduct.stock || 0} onChange={e => setQuickProduct({...quickProduct, stock: parseInt(e.target.value) || 0})} />
+                <input required placeholder={t('productName')} className="w-full px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm h-12 sm:h-auto" onChange={e => setQuickProduct({...quickProduct, name: e.target.value})} />
+                <input required type="number" placeholder={t('unitPricePlaceholder')} className="w-full px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm h-12 sm:h-auto" value={quickProduct.price || 0} onChange={e => setQuickProduct({...quickProduct, price: parseFloat(e.target.value) || 0})} />
+                <input required type="number" placeholder={t('initialStockPlaceholder')} className="w-full px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm h-12 sm:h-auto" value={quickProduct.stock || 0} onChange={e => setQuickProduct({...quickProduct, stock: parseInt(e.target.value) || 0})} />
                 <div className="mt-auto shrink-0 pt-4">
-                  <button type="submit" className="w-full py-3.5 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest text-[10px] sm:text-xs">Register Asset</button>
+                  <button type="submit" className="w-full py-3.5 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-widest text-[10px] sm:text-xs">{t('registerAsset')}</button>
                 </div>
               </form>
             </motion.div>

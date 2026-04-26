@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+
+export type ThemeMode = 'light' | 'dark' | 'forest' | 'eye-comfort';
 
 interface ThemeColors {
   primary: string;
@@ -10,6 +12,8 @@ interface ThemeColors {
 }
 
 interface ThemeContextType {
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
   colors: ThemeColors;
   updateColors: (newColors: Partial<ThemeColors>) => Promise<void>;
   resetTheme: () => Promise<void>;
@@ -25,33 +29,52 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('app-theme-mode');
+    return (saved as ThemeMode) || 'forest';
+  });
   const [colors, setColors] = useState<ThemeColors>(defaultColors);
 
+  // Sync mode with document class
   useEffect(() => {
-    // Apply colors to CSS variables
-    const root = document.documentElement;
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark', 'forest', 'eye-comfort');
+    root.classList.add(mode);
+    localStorage.setItem('app-theme-mode', mode);
+  }, [mode]);
+
+  // Sync colors with CSS variables
+  useEffect(() => {
+    const root = window.document.documentElement;
     root.style.setProperty('--brand-primary', colors.primary);
     root.style.setProperty('--brand-secondary', colors.secondary);
     root.style.setProperty('--brand-accent', colors.accent);
   }, [colors]);
 
+  // Fetch settings from Firestore
   useEffect(() => {
     if (!user) {
       setColors(defaultColors);
       return;
     }
 
-    const themeDoc = doc(db, 'users', user.uid, 'settings', 'theme');
-    
-    const unsubscribe = onSnapshot(themeDoc, (docSnap) => {
-      if (docSnap.exists() && docSnap.data().theme) {
-        setColors({ ...defaultColors, ...docSnap.data().theme });
-      } else {
-        setColors(defaultColors);
+    const fetchTheme = async () => {
+      try {
+        const themeDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'theme'));
+        if (themeDoc.exists()) {
+          const data = themeDoc.data() as ThemeColors;
+          setColors({
+            primary: data.primary || defaultColors.primary,
+            secondary: data.secondary || defaultColors.secondary,
+            accent: data.accent || defaultColors.accent,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching theme:', error);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    fetchTheme();
   }, [user]);
 
   const updateColors = async (newColors: Partial<ThemeColors>) => {
@@ -60,11 +83,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     if (user) {
       try {
-        await setDoc(doc(db, 'users', user.uid, 'settings', 'theme'), {
-          theme: updated
-        }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid, 'settings', 'theme'), updated);
       } catch (error) {
-        console.error('Failed to save theme:', error);
+        console.error('Error saving theme:', error);
       }
     }
   };
@@ -73,17 +94,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setColors(defaultColors);
     if (user) {
       try {
-        await setDoc(doc(db, 'users', user.uid, 'settings', 'theme'), {
-          theme: defaultColors
-        }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid, 'settings', 'theme'), defaultColors);
       } catch (error) {
-        console.error('Failed to reset theme:', error);
+        console.error('Error resetting theme:', error);
       }
     }
   };
 
   return (
-    <ThemeContext.Provider value={{ colors, updateColors, resetTheme }}>
+    <ThemeContext.Provider value={{ mode, setMode, colors, updateColors, resetTheme }}>
       {children}
     </ThemeContext.Provider>
   );

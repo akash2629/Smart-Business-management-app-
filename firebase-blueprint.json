@@ -96,6 +96,36 @@
         "email": { "type": "string" }
       },
       "required": ["code", "expiry", "email"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Supplier contact and shop information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "shopName": { "type": "string" },
+        "shopAddress": { "type": "string" },
+        "email": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["name", "phone", "shopName", "ownerId"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "Inventory procurement from a supplier",
+      "type": "object",
+      "properties": {
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Due"] },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["supplierId", "totalAmount", "paidAmount", "status", "ownerId"]
     }
   },
   "firestore": {
@@ -106,6 +136,18 @@
     "/users/{userId}/settings/{settingId}": {
       "schema": "UserSettings",
       "description": "User specific settings and theme preferences"
+    },
+    "/users/{userId}/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Main supplier collection"
+    },
+    "/users/{userId}/purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "Inventory purchase records"
+    },
+    "/users/{userId}/purchases/{purchaseId}/items/{itemId}": {
+      "schema": "OrderItem",
+      "description": "Line items for purchases"
     },
     "/users/{userId}/products/{productId}": {
       "schema": "Product",

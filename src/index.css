@@ -5,6 +5,54 @@
   --brand-primary: #0f172a;
   --brand-secondary: #64748b;
   --brand-accent: #10b981;
+  
+  --bg-main: #FDFCFB;
+  --text-main: #0f172a;
+  --card-bg: #ffffff;
+  --card-border: #f1f5f9;
+  --input-bg: #f8fafc;
+  --header-bg: #f8fafc;
+}
+
+.dark {
+  --brand-primary: #f8fafc;
+  --brand-secondary: #94a3b8;
+  --brand-accent: #34d399;
+  
+  --bg-main: #020617;
+  --text-main: #f1f5f9;
+  --card-bg: #0f172a;
+  --card-border: #1e293b;
+  --input-bg: #1e293b;
+  --header-bg: #1e293b;
+}
+
+.forest {
+  --brand-primary: #064e3b;
+  --brand-secondary: #065f46;
+  --brand-accent: #10b981;
+  
+  --bg-main: #f0fdf4;
+  --text-main: #064e3b;
+  --card-bg: #ffffff;
+  --card-border: #dcfce7;
+  --input-bg: #f0fdf4;
+  --header-bg: #dcfce7;
+}
+
+/* ... existing themes ... */
+
+.eye-comfort {
+  --brand-primary: #433422;
+  --brand-secondary: #7b6f60;
+  --brand-accent: #c08b49;
+  
+  --bg-main: #fdf6e3;
+  --text-main: #586e75;
+  --card-bg: #eee8d5;
+  --card-border: #d3c6aa;
+  --input-bg: #eee8d5;
+  --header-bg: #eee8d5;
 }
 
 @theme {
@@ -15,37 +63,82 @@
   --color-brand-primary: var(--brand-primary);
   --color-brand-secondary: var(--brand-secondary);
   --color-brand-accent: var(--brand-accent);
+  
+  --color-bg-main: var(--bg-main);
+  --color-text-main: var(--text-main);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-input-bg: var(--input-bg);
+  --color-header-bg: var(--header-bg);
 }
 
 @layer base {
   body {
-    @apply bg-[#FDFCFB] text-slate-900 antialiased selection:bg-brand-accent/20 selection:text-brand-accent;
+    @apply bg-bg-main text-text-main antialiased selection:bg-brand-accent/20 selection:text-brand-accent transition-colors duration-300;
   }
 
-  h1 { @apply text-xl sm:text-5xl font-serif font-black tracking-tight; }
-  h2 { @apply text-lg sm:text-3xl font-serif font-black tracking-tight; }
-  h3 { @apply text-base sm:text-2xl font-serif font-black tracking-tight; }
+  h1 { @apply text-xl sm:text-5xl font-serif font-black tracking-tight text-text-main; }
+  h2 { @apply text-lg sm:text-3xl font-serif font-black tracking-tight text-text-main; }
+  h3 { @apply text-base sm:text-2xl font-serif font-black tracking-tight text-text-main; }
+
+  /* Global placeholder logic: Black in light mode, white in dark mode */
+  input::placeholder, textarea::placeholder {
+    color: #000000 !important;
+    opacity: 0.5 !important;
+    transition: color 0.3s ease;
+  }
+
+  .dark input::placeholder, .dark textarea::placeholder {
+    color: #ffffff !important;
+    opacity: 0.7 !important;
+  }
+
+  /* Forest is a light theme, so black placeholder is correct, but let's make it explicit */
+  .forest input::placeholder, .forest textarea::placeholder {
+    color: #000000 !important;
+    opacity: 0.5 !important;
+  }
 }
 
 @layer components {
   .premium-card {
-    @apply bg-white border border-slate-100 rounded-xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 overflow-hidden;
+    @apply bg-card-bg border border-card-border rounded-xl sm:rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 overflow-hidden;
   }
 
   .premium-button-primary {
-    @apply bg-brand-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/10 text-xs sm:text-base;
+    @apply bg-brand-primary text-bg-main px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/10 text-xs sm:text-base;
   }
 
   .premium-button-secondary {
-    @apply bg-white text-brand-secondary px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold border border-slate-100 hover:border-brand-primary/20 hover:text-brand-primary transition-all flex items-center justify-center gap-2 text-xs sm:text-base;
+    @apply bg-card-bg text-brand-secondary px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold border border-card-border hover:border-brand-primary/20 hover:text-brand-primary transition-all flex items-center justify-center gap-2 text-xs sm:text-base;
   }
 
   .data-grid-header {
-    @apply bg-slate-50/50 text-brand-secondary text-[10px] uppercase font-bold tracking-[0.1em] py-4 px-6 border-b border-slate-100;
+    @apply bg-header-bg text-brand-secondary text-[10px] uppercase font-bold tracking-[0.1em] py-4 px-6 border-b border-card-border;
   }
 
   .detail-label {
     @apply text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 block;
+  }
+
+  /* Theme Overrides for standard Tailwind classes */
+  .dark, .eye-comfort {
+    & .bg-white { background-color: var(--card-bg) !important; }
+    & .bg-[#FDFCFB] { background-color: var(--bg-main) !important; }
+    & .bg-slate-50 { background-color: var(--header-bg) !important; }
+    & .bg-slate-50\/50 { background-color: var(--header-bg) !important; }
+    
+    & .text-slate-900 { color: var(--text-main) !important; }
+    & .text-slate-800 { color: var(--text-main) !important; }
+    & .text-brand-primary { color: var(--brand-primary) !important; }
+    
+    & .border-slate-100 { border-color: var(--card-border) !important; }
+    & .border-slate-200 { border-color: var(--card-border) !important; }
+  }
+
+  .dark {
+    & .text-slate-500 { color: var(--brand-secondary) !important; }
+    & .text-slate-400 { color: var(--brand-secondary) !important; }
   }
 
   /* Custom scrollbar for a more premium look */

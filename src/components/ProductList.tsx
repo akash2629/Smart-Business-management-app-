@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Barcode, Layers, X, Download, Image as ImageIcon, Upload, Loader2, Camera, Clock } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, Barcode, Layers, X, Download, Image as ImageIcon, Upload, Loader2, Camera, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -40,7 +42,8 @@ export default function ProductList() {
     stockAlert: 0,
     images: []
   });
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<{ images: string[], currentIndex: number } | null>(null);
+  const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -212,6 +215,54 @@ export default function ProductList() {
     toast.success('Exporting catalog to Excel...');
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF() as any;
+    doc.setFontSize(20);
+    doc.text('Product Catalogue', 105, 20, { align: 'center' });
+    
+    const tableData = filteredProducts.map((p) => [
+      '', // Placeholder for image
+      p.name,
+      p.code,
+      formatCurrency(p.buyPrice || 0),
+      formatCurrency(p.salePrice || 0),
+      p.stock.toString()
+    ]);
+
+    autoTable(doc, {
+      startY: 30,
+      head: [['Image', 'Product Name', 'Code', 'Buy Price', 'Sale Price', 'Stock']],
+      body: tableData,
+      columnStyles: {
+        0: { cellWidth: 25 },
+      },
+      didDrawCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const product = filteredProducts[data.row.index];
+          if (product.images && product.images.length > 0) {
+            const imgData = product.images[0];
+            try {
+              // Extract format
+              const formatMatch = imgData.match(/data:image\/(png|jpeg|jpg);base64/);
+              const format = formatMatch ? formatMatch[1].toUpperCase() : 'JPEG';
+              doc.addImage(imgData, format === 'JPG' ? 'JPEG' : format, data.cell.x + 2, data.cell.y + 2, 21, 21);
+            } catch (e) {
+              console.error('Error adding image to PDF', e);
+            }
+          }
+        }
+      },
+      styles: {
+        minCellHeight: 25,
+        valign: 'middle',
+        fontSize: 10
+      }
+    });
+    
+    doc.save('Product_Catalogue.pdf');
+    toast.success('Product catalogue exported to PDF');
+  };
+
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     p.code.toLowerCase().includes(search.toLowerCase())
@@ -228,13 +279,20 @@ export default function ProductList() {
           <h1 className="text-sm sm:text-5xl font-serif font-black tracking-tighter leading-tight">{t('productCatalog')}</h1>
           <p className="text-slate-500 font-medium tracking-tight hdden sm:block text-xs sm:text-base hidden sm:block">{t('inventoryGlobal')}</p>
         </div>
-        <div className="grid grid-cols-2 sm:flex items-center gap-3 sm:gap-4">
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-2 sm:gap-4 justify-end">
           <button 
             onClick={exportToExcel}
-            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-brand-accent/20 text-brand-accent font-bold text-[10px] sm:text-base bg-white hover:bg-brand-accent/5 transition-all shadow-sm"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-brand-accent/20 text-brand-accent font-bold text-[10px] sm:text-base bg-white hover:bg-brand-accent/5 transition-all shadow-sm min-w-[100px]"
           >
             <Download size={18} className="sm:w-5 sm:h-5" />
-            <span>{t('exportExcel')}</span>
+            <span>EXCEL</span>
+          </button>
+          <button 
+            onClick={exportToPDF}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl border border-rose-200 text-rose-600 font-bold text-[10px] sm:text-base bg-white hover:bg-rose-50 transition-all shadow-sm min-w-[100px]"
+          >
+            <Download size={18} className="sm:w-5 sm:h-5 text-rose-600" />
+            <span>PDF</span>
           </button>
           <button 
             onClick={() => {
@@ -242,7 +300,7 @@ export default function ProductList() {
               setFormData({ name: '', code: '', price: 0, stock: 0, buyPrice: 0, salePrice: 0 });
               setIsModalOpen(true);
             }}
-            className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 font-bold text-white text-[10px] sm:text-base hover:opacity-90 transition-all shadow-lg active:scale-95"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-900 font-bold text-white text-[10px] sm:text-base hover:opacity-90 transition-all shadow-lg active:scale-95 min-w-[100px]"
           >
             <Plus size={18} className="sm:w-5 sm:h-5" />
             <span>{t('addAsset')}</span>
@@ -291,8 +349,17 @@ export default function ProductList() {
                 <tr key={product.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform duration-500">
-                        <Package size={20} />
+                      <div 
+                        onClick={() => product.images && product.images.length > 0 && setPreviewImages({ images: product.images, currentIndex: 0 })}
+                        onMouseEnter={() => product.images && product.images.length > 0 && setHoveredImage(product.images[0])}
+                        onMouseLeave={() => setHoveredImage(null)}
+                        className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform duration-500 cursor-pointer overflow-hidden relative"
+                      >
+                        {product.images && product.images.length > 0 ? (
+                          <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Package size={20} />
+                        )}
                       </div>
                       <span className="font-bold text-slate-900 tracking-tight">{product.name}</span>
                     </div>
@@ -366,9 +433,14 @@ export default function ProductList() {
               <div key={product.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl shadow-slate-200">
+                    <div 
+                      onClick={() => product.images && product.images.length > 0 && setPreviewImages({ images: product.images, currentIndex: 0 })}
+                      onMouseEnter={() => product.images && product.images.length > 0 && setHoveredImage(product.images[0])}
+                      onMouseLeave={() => setHoveredImage(null)}
+                      className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl shadow-slate-200 cursor-pointer overflow-hidden"
+                    >
                       {product.images && product.images.length > 0 ? (
-                        <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+                        <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded-2xl transition-transform hover:scale-110" referrerPolicy="no-referrer" />
                       ) : (
                         <Package size={24} />
                       )}
@@ -424,10 +496,10 @@ export default function ProductList() {
                     <div className="flex flex-col mt-2">
                       <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">View Info</label>
                       <button 
-                        onClick={() => setPreviewImage(product.images![0])}
+                        onClick={() => setPreviewImages({ images: product.images!, currentIndex: 0 })}
                         className="text-brand-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
                       >
-                        <ImageIcon size={10} /> View Photo
+                        <ImageIcon size={10} /> View Photos
                       </button>
                     </div>
                   )}
@@ -438,30 +510,137 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Image Carousel Modal */}
       <AnimatePresence>
-        {previewImage && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        {hoveredImage && (
+          <div className="fixed inset-0 z-[150] pointer-events-none flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="w-[50vw] h-[50vh] bg-white rounded-[2.5rem] shadow-2xl border-4 border-white overflow-hidden"
+            >
+              <img 
+                src={hoveredImage} 
+                alt="Quick View" 
+                className="w-full h-full object-contain bg-slate-50" 
+                referrerPolicy="no-referrer" 
+              />
+            </motion.div>
+          </div>
+        )}
+
+        {previewImages && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setPreviewImage(null)}
-              className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
+              onClick={() => setPreviewImages(null)}
+              className="absolute inset-0 bg-slate-900/95 backdrop-blur-md"
             />
+            
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="relative z-10 max-w-4xl w-full"
+              className="relative z-10 w-full max-w-5xl aspect-square sm:aspect-video flex items-center justify-center group"
             >
               <button 
-                onClick={() => setPreviewImage(null)}
-                className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors"
+                onClick={() => setPreviewImages(null)}
+                className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition-colors p-2 bg-black/20 backdrop-blur-md rounded-full sm:hidden"
               >
-                <X size={32} />
+                <X size={24} />
               </button>
-              <img src={previewImage} alt="Preview" className="w-full h-auto rounded-3xl" referrerPolicy="no-referrer" />
+
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewImages(null);
+                }}
+                className="absolute -top-16 right-0 text-white/50 hover:text-white transition-colors hidden sm:block"
+              >
+                <X size={40} />
+              </button>
+
+              {previewImages.images.length > 1 && (
+                <>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewImages({
+                        ...previewImages,
+                        currentIndex: (previewImages.currentIndex - 1 + previewImages.images.length) % previewImages.images.length
+                      });
+                    }}
+                    className="absolute left-4 z-20 p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all border border-white/10 group-hover:left-6"
+                  >
+                    <ChevronLeft size={24} className="sm:w-8 sm:h-8" />
+                  </button>
+
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewImages({
+                        ...previewImages,
+                        currentIndex: (previewImages.currentIndex + 1) % previewImages.images.length
+                      });
+                    }}
+                    className="absolute right-4 z-20 p-3 sm:p-4 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all border border-white/10 group-hover:right-6"
+                  >
+                    <ChevronRight size={24} className="sm:w-8 sm:h-8" />
+                  </button>
+                </>
+              )}
+
+              <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                <AnimatePresence mode="wait">
+                  <motion.img 
+                    key={previewImages.currentIndex}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.2}
+                    onDragEnd={(_, info) => {
+                      if (info.offset.x > 100) {
+                        setPreviewImages({
+                          ...previewImages,
+                          currentIndex: (previewImages.currentIndex - 1 + previewImages.images.length) % previewImages.images.length
+                        });
+                      } else if (info.offset.x < -100) {
+                        setPreviewImages({
+                          ...previewImages,
+                          currentIndex: (previewImages.currentIndex + 1) % previewImages.images.length
+                        });
+                      }
+                    }}
+                    src={previewImages.images[previewImages.currentIndex]} 
+                    alt="Preview" 
+                    className="max-w-full max-h-full object-contain sm:rounded-3xl shadow-2xl cursor-grab active:cursor-grabbing" 
+                    referrerPolicy="no-referrer" 
+                  />
+                </AnimatePresence>
+              </div>
+
+              {previewImages.images.length > 1 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/20 backdrop-blur-md rounded-full border border-white/10">
+                  {previewImages.images.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewImages({ ...previewImages, currentIndex: idx });
+                      }}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-all",
+                        idx === previewImages.currentIndex ? "bg-white w-4" : "bg-white/30 hover:bg-white/50"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
             </motion.div>
           </div>
         )}

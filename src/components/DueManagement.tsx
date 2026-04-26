@@ -329,127 +329,156 @@ export default function DueManagement() {
         .sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
 
       const doc = new jsPDF() as any;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
       
       // Branding Header
       doc.setFontSize(24);
       doc.setTextColor(15, 23, 42);
-      doc.text('Customer Transaction Audit', 105, 25, { align: 'center' });
+      doc.text('Customer Detailed Audit Report', pageWidth / 2, 25, { align: 'center' });
       
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text('SmartShop Enterprise Financial System', 105, 32, { align: 'center' });
+      doc.text('Inventory & Ledger Management System', pageWidth / 2, 32, { align: 'center' });
       
       // Customer Info Card
       doc.setDrawColor(241, 245, 249);
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(14, 45, 182, 35, 3, 3, 'FD');
+      doc.roundedRect(14, 45, pageWidth - 28, 45, 3, 3, 'FD');
       
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.text(record.name, 20, 55);
+      doc.text(record.name, 22, 55);
       
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(71, 85, 105);
-      doc.text(`Mobile: ${customer?.phone || 'Not Registered'}`, 20, 62);
-      doc.text(`Address: ${customer?.address || 'Not Registered'}`, 20, 68);
-      doc.text(`Report ID: #${record.id.slice(0, 8)}`, 20, 74);
+      doc.text(`Mobile Number: ${customer?.phone || 'Not Provided'}`, 22, 65);
+      doc.text(`Address: ${customer?.address || 'Not Provided'}`, 22, 72);
+      doc.text(`Order Count: ${historyOrders.length} entries`, 22, 79);
+      doc.text(`Payment Count: ${historyPayments.length} entries`, 22, 86);
       
-      // Totals on Right
-      doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text(`TOTAL DUE: ${formatCurrency(record.remaining_balance)}`, 140, 55);
-      doc.text(`TOTAL PAID: ${formatCurrency(record.total_paid)}`, 140, 62);
-      doc.text(`${Math.round((record.total_paid / record.total_amount) * 100)}% COLLECTION PROGRESS`, 140, 69);
-
-      // Asset Acquisition Table
-      doc.setFontSize(10);
+      // Financial Summary Box on Right
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(pageWidth - 85, 50, 65, 35, 2, 2, 'FD');
+      
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('BILLING & ORDERS', 14, 95);
+      doc.setTextColor(225, 29, 72); // rose-600
+      doc.text(`Total Due:`, pageWidth - 80, 58);
+      doc.text(formatCurrency(record.remaining_balance), pageWidth - 80, 64);
+      
+      doc.setTextColor(5, 150, 105); // emerald-600
+      doc.text(`Total Paid:`, pageWidth - 80, 74);
+      doc.text(formatCurrency(record.total_paid), pageWidth - 80, 80);
+
+      // Asset Acquisition Table (Billing)
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text('PRODUCT BILLING & ENTRIES', 14, 105);
       
       autoTable(doc, {
-        startY: 100,
-        head: [['Date', 'Type', 'Note', 'Amount', 'Status']],
+        startY: 110,
+        head: [['Entry Date', 'Type', 'Specific Details / Note', 'Amount', 'Status']],
         body: historyOrders.map((o: any) => [
-          o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'Manual Entry',
+          o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'Manual Legacy',
           o.type || 'Order',
-          o.note || '-',
+          o.note || 'No additional notes provided',
           formatCurrency(o.totalAmount),
-          o.status
+          { content: o.status, styles: { textColor: o.status === 'Paid' ? [5, 150, 105] : [225, 29, 72], fontStyle: 'bold' } }
         ]),
-        headStyles: { fillColor: [15, 23, 42] },
-        styles: { fontSize: 8, cellPadding: 2 },
-        margin: { top: 100 }
+        headStyles: { fillColor: [15, 23, 42], fontSize: 9 },
+        bodyStyles: { fontSize: 8, cellPadding: 3 },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        margin: { left: 14, right: 14 }
       });
 
-      // Settlement History Table
+      // Settlement History Table (Payments)
       let finalY = (doc as any).lastAutoTable.finalY + 15;
-      doc.setFontSize(10);
+      
+      // Page break check for Payment History table
+      if (finalY > pageHeight - 40) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('PAYMENT HISTORY', 14, finalY);
+      doc.setTextColor(15, 23, 42);
+      doc.text('PAYMENT HISTORY & SETTLEMENTS', 14, finalY);
 
       autoTable(doc, {
         startY: finalY + 5,
-        head: [['Date', 'Method', 'Transaction ID', 'Paid Amount']],
+        head: [['Payment Date', 'Method', 'Reference ID', 'Amount Paid']],
         body: historyPayments.map((p: any) => [
           p.paymentDate || 'N/A',
           p.method || 'Cash',
-          p.id.slice(0, 10),
+          p.id.slice(0, 12).toUpperCase(),
           formatCurrency(p.amount)
         ]),
-        headStyles: { fillColor: [16, 185, 129] },
-        styles: { fontSize: 8, cellPadding: 2 }
+        headStyles: { fillColor: [5, 150, 105], fontSize: 9 },
+        bodyStyles: { fontSize: 8, cellPadding: 3 },
+        alternateRowStyles: { fillColor: [240, 253, 244] },
+        margin: { left: 14, right: 14 }
       });
 
-      // Visual Evidence Section (Images)
-      const imagesToProcess: {url: string, orderId: string, date: string}[] = [];
+      // Visual Evidence Section (Images) - LARGE SIZE
+      const imagesToProcess: {url: string, orderId: string, date: string, note?: string}[] = [];
       historyOrders.forEach((o: any) => {
         if (o.images && Array.isArray(o.images)) {
           o.images.forEach((img: string) => {
             imagesToProcess.push({
               url: img,
               orderId: o.id.slice(-6),
-              date: o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'N/A'
+              date: o.createdAt?.toDate ? new Date(o.createdAt.toDate()).toLocaleDateString() : 'N/A',
+              note: o.note
             });
           });
         }
       });
 
       if (imagesToProcess.length > 0) {
-        doc.addPage();
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('VISUAL EVIDENCE (ENTRY PHOTOS)', 105, 15, { align: 'center' });
-        
-        let imgX = 20;
-        let imgY = 25;
-        const imgSize = 50;
-        const padding = 10;
-
         for (let i = 0; i < imagesToProcess.length; i++) {
+          doc.addPage();
+          
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 23, 42);
+          doc.text(`VISUAL EVIDENCE (ENTRY PHOTO ${i + 1})`, pageWidth / 2, 20, { align: 'center' });
+          
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Linked Entry ID: #${imagesToProcess[i].orderId} | Date: ${imagesToProcess[i].date}`, pageWidth / 2, 28, { align: 'center' });
+          
+          if (imagesToProcess[i].note) {
+            doc.text(`Entry Note: ${imagesToProcess[i].note}`, pageWidth / 2, 34, { align: 'center', maxWidth: pageWidth - 40 });
+          }
+
           const imgData = await toBase64(imagesToProcess[i].url);
           if (imgData) {
-            if (imgY + imgSize + 10 > 280) { // Page overflow check
-              doc.addPage();
-              imgY = 20;
-            }
+            // User requested 80% size
+            const imgWidth = pageWidth * 0.8;
+            const imgHeight = pageHeight * 0.5; // Adjusted height for proportion and info text
+            const xOffset = (pageWidth - imgWidth) / 2;
+            const yOffset = 45;
             
-            doc.addImage(imgData, 'JPEG', imgX, imgY, imgSize, imgSize);
+            // Try to maintain aspect ratio if possible using jspdf's addImage options
+            // But for "80% size" strictly, we follow the requested scale
+            doc.addImage(imgData, 'JPEG', xOffset, yOffset, imgWidth, imgHeight, undefined, 'FAST');
+            
+            // Footer on image page
             doc.setFontSize(8);
-            doc.text(`Order: #${imagesToProcess[i].orderId}`, imgX, imgY + imgSize + 5);
-            doc.text(`Date: ${imagesToProcess[i].date}`, imgX, imgY + imgSize + 10);
-
-            imgX += imgSize + padding;
-            if (imgX + imgSize > 190) { // Row overflow check
-              imgX = 20;
-              imgY += imgSize + 25;
-            }
+            doc.setTextColor(148, 163, 184);
+            doc.text('This visual evidence is captured at the time of manual entry for billing verification.', pageWidth / 2, yOffset + imgHeight + 15, { align: 'center' });
           }
         }
       }
 
-      doc.save(`Audit_${record.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      const fileName = `Audit_${record.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
       toast.success('Detailed customer audit exported');
     } catch (error) {
       console.error(error);

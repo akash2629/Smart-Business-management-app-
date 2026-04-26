@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, User, Phone, MapPin, X, Download, History, Eye, Calendar, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Phone, MapPin, X, Download, History, Eye, Calendar, ShoppingCart, ArrowRight, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Customer, Order } from '../types';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -220,6 +222,136 @@ export default function CustomerList() {
     const totalOrdered = customerOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
     const totalPaid = customerOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
     return totalOrdered - totalPaid;
+  };
+
+  const exportProfileToPDF = async () => {
+    if (!selectedCustomer || !user) return;
+    toast.info('Generating PDF Report...');
+
+    try {
+      const doc = new jsPDF() as any;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // Slate 900
+      doc.text('Customer Transaction Statement', margin, 30);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // Slate 400
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, 38);
+
+      // Customer Info
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Customer Name: ${selectedCustomer.name}`, margin, 50);
+      doc.text(`Mobile: ${selectedCustomer.phone || 'N/A'}`, margin, 57);
+      doc.text(`Address: ${selectedCustomer.address || 'N/A'}`, margin, 64);
+
+      // Financial Summary
+      const totalDue = calculateTotalDue();
+      doc.setFontSize(11);
+      doc.text(`Total Due: ${formatCurrency(totalDue)}`, margin, 75);
+
+      let currentY = 85;
+
+      // Orders Table
+      doc.setFontSize(14);
+      doc.text('Purchase History', margin, currentY);
+      currentY += 5;
+
+      const orderRows = customerOrders.map(order => [
+        formatDate(order.createdAt),
+        `Invoice #${order.id.slice(-6)}`,
+        order.items?.map((i: any) => `${i.name} (x${i.quantity})`).join(', ') || order.type,
+        formatCurrency(order.totalAmount),
+        formatCurrency(order.paidAmount),
+        order.status
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Date', 'Bill ID', 'Items/Note', 'Total', 'Paid', 'Status']],
+        body: orderRows,
+        margin: { left: margin, right: margin },
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 15;
+
+      // Payments Table
+      if (customerPayments.length > 0) {
+        if (currentY > 250) { doc.addPage(); currentY = 20; }
+        doc.setFontSize(14);
+        doc.text('Payment History', margin, currentY);
+        currentY += 5;
+
+        const paymentRows = customerPayments.map(p => [
+          p.paymentDate,
+          formatCurrency(p.amount),
+          'Cash'
+        ]);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Payment Date', 'Amount Paid', 'Method']],
+          body: paymentRows,
+          margin: { left: margin, right: margin },
+          theme: 'grid',
+          headStyles: { fillColor: [16, 185, 129] } // Emerald 500
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+      }
+
+      // Notes and Images
+      customerOrders.forEach((order, index) => {
+        const hasNote = order.note;
+        const hasImages = order.images && order.images.length > 0;
+
+        if (hasNote || hasImages) {
+          if (currentY > 220) { doc.addPage(); currentY = 20; }
+          
+          doc.setFontSize(11);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Details for Bill #${order.id.slice(-6)}:`, margin, currentY);
+          currentY += 8;
+
+          if (hasNote) {
+            doc.setFontSize(10);
+            doc.setTextColor(51, 65, 85);
+            doc.text(`Note: ${order.note}`, margin + 5, currentY);
+            currentY += 10;
+          }
+
+          if (hasImages) {
+            order.images.forEach((img: string) => {
+              if (currentY > 150) { doc.addPage(); currentY = 30; }
+              const imgW = (pageWidth - margin * 2) * 0.8;
+              const imgH = imgW * 0.8; // User requested 80% height relative to width or ratio? 
+              // User said "picture view size (width:80%: height:80%)". 
+              // In PDF context, usually 80% of page width.
+              
+              try {
+                doc.addImage(img, 'JPEG', (pageWidth - imgW) / 2, currentY, imgW, imgH);
+                currentY += imgH + 15;
+              } catch (e) {
+                console.error('PDF Image error:', e);
+              }
+            });
+          }
+          currentY += 5;
+        }
+      });
+
+      doc.save(`Statement_${selectedCustomer.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('Professional PDF statement exported');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to generate PDF');
+    }
   };
 
   return (
@@ -521,9 +653,18 @@ export default function CustomerList() {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setIsProfileOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-xl transition-all">
-                  <X size={18} className="sm:w-6 sm:h-6" />
-                </button>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <button 
+                    onClick={exportProfileToPDF}
+                    className="flex items-center justify-center gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-xl bg-slate-900 border border-slate-900 text-white font-bold text-[10px] sm:text-xs hover:bg-slate-800 transition-all shadow-sm"
+                  >
+                    <FileText size={14} className="sm:w-4 sm:h-4" />
+                    <span>{t('exportPdf')}</span>
+                  </button>
+                  <button onClick={() => setIsProfileOpen(false)} className="text-slate-300 hover:text-slate-900 p-2 sm:p-3 hover:bg-slate-100 rounded-xl transition-all">
+                    <X size={18} className="sm:w-6 sm:h-6" />
+                  </button>
+                </div>
               </div>
 
               {/* Tabs */}

@@ -13,8 +13,8 @@ import {
 
 export default function Settings() {
   const { user } = useAuth();
-  const { t } = useLanguage();
-  const { colors, updateColors, resetTheme } = useTheme();
+  const { t, language, setLanguage } = useLanguage();
+  const { mode, setMode, colors, updateColors, resetTheme } = useTheme();
   const [step, setStep] = useState<'initial' | 'verification' | 'success'>('initial');
   const [loading, setLoading] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -227,6 +227,150 @@ export default function Settings() {
       </header>
 
       <div className="max-w-4xl space-y-12">
+        {/* Language Settings Section */}
+        <section className="space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <div className="w-5 h-5 bg-brand-primary text-white rounded flex items-center justify-center">
+                <Mail size={12} />
+              </div>
+              Language Settings
+            </h2>
+            <p className="text-sm text-slate-500 font-medium tracking-tight">Choose your preferred application language.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button 
+              onClick={() => setLanguage('en')}
+              className={cn(
+                "premium-card p-6 flex items-center gap-4 group cursor-pointer border-2 transition-all",
+                language === 'en' ? "border-brand-primary shadow-xl" : "border-card-border"
+              )}
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                language === 'en' ? "bg-brand-primary text-white" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+              )}>
+                <span className="font-bold">EN</span>
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-slate-900">English</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Default (US)</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => setLanguage('bn')}
+              className={cn(
+                "premium-card p-6 flex items-center gap-4 group cursor-pointer border-2 transition-all",
+                language === 'bn' ? "border-brand-primary shadow-xl" : "border-card-border"
+              )}
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                language === 'bn' ? "bg-brand-primary text-white" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+              )}>
+                <span className="font-bold">BN</span>
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-slate-900">বাংলা (Bangla)</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Bengali Language</p>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* Display Mode Section */}
+        <section className="space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <div className="w-5 h-5 bg-brand-primary text-white rounded flex items-center justify-center">
+                <RotateCcw size={12} className="rotate-45" />
+              </div>
+              Display Mode
+            </h2>
+            <p className="text-sm text-slate-500 font-medium tracking-tight">Choose your preferred viewing experience.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button 
+              onClick={() => setMode('light')}
+              className={cn(
+                "premium-card p-6 flex flex-col items-center gap-4 text-center group cursor-pointer border-2 transition-all",
+                mode === 'light' ? "border-brand-primary shadow-xl" : "border-card-border"
+              )}
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                mode === 'light' ? "bg-brand-primary text-white" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+              )}>
+                <RotateCcw size={24} className="rotate-180" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900">Light Mode</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Default View</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => setMode('dark')}
+              className={cn(
+                "premium-card p-6 flex flex-col items-center gap-4 text-center group cursor-pointer border-2 transition-all",
+                mode === 'dark' ? "border-brand-primary shadow-xl" : "border-card-border"
+              )}
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                mode === 'dark' ? "bg-brand-primary text-white" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+              )}>
+                <Palette size={24} />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900">Dark Mode</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Night Optimized</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => setMode('forest')}
+              className={cn(
+                "premium-card p-6 flex flex-col items-center gap-4 text-center group cursor-pointer border-2 transition-all",
+                mode === 'forest' ? "border-brand-primary shadow-xl" : "border-card-border"
+              )}
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                mode === 'forest' ? "bg-brand-primary text-white" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+              )}>
+                <RotateCcw size={24} className="rotate-90 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 font-serif">Forest Theme</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Earthy Greens</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => setMode('eye-comfort')}
+              className={cn(
+                "premium-card p-6 flex flex-col items-center gap-4 text-center group cursor-pointer border-2 transition-all",
+                mode === 'eye-comfort' ? "border-brand-primary shadow-xl" : "border-card-border"
+              )}
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                mode === 'eye-comfort' ? "bg-brand-primary text-white" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+              )}>
+                <ShieldAlert size={24} />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900">Eye Comfort</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Warm Tones</p>
+              </div>
+            </button>
+          </div>
+        </section>
+
         {/* Visual Identity Section */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">

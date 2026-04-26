@@ -20,23 +20,32 @@ import {
   Clock,
   Settings as SettingsIcon,
   Wifi,
-  WifiOff
+  WifiOff,
+  Sun,
+  Moon,
+  Eye,
+  Truck,
+  ShoppingBasket,
+  Languages
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import Dashboard from './components/Dashboard';
 import OrderList from './components/OrderList';
 import CustomerList from './components/CustomerList';
+import SupplierList from './components/SupplierList';
+import PurchaseList from './components/PurchaseList';
 import ProductList from './components/ProductList';
 import DueManagement from './components/DueManagement';
 import TransactionHistory from './components/TransactionHistory';
 import UnifiedDashboard from './components/UnifiedDashboard';
 import Settings from './components/Settings';
 import NotificationCenter from './components/NotificationCenter';
+import Translator from './components/Translator';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { signInWithGoogle, logOut } from './lib/firebase';
 
 interface NavItemProps {
@@ -69,7 +78,7 @@ function NavItem({ to, icon: Icon, label, active, onClick }: NavItemProps) {
 function Login() {
   const { t } = useLanguage();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB] p-4 text-slate-900 overflow-hidden relative">
+    <div className="min-h-screen flex items-center justify-center bg-bg-main p-4 text-text-main overflow-hidden relative transition-colors duration-500">
       {/* Decorative elements */}
       <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-emerald-50 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 opacity-60" />
       <div className="absolute bottom-0 left-0 w-[40vw] h-[40vw] bg-blue-50 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4 opacity-50" />
@@ -125,6 +134,7 @@ function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { mode, setMode } = useTheme();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -143,15 +153,18 @@ function Navigation() {
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: "Command Center" },
     { to: "/orders", icon: ShoppingCart, label: t('orders') },
+    { to: "/purchases", icon: ShoppingBasket, label: t('purchases') },
     { to: "/customers", icon: Users, label: t('customers') },
+    { to: "/suppliers", icon: Truck, label: t('suppliers') },
     { to: "/products", icon: Package, label: t('products') },
     { to: "/dues", icon: CreditCard, label: t('dues') },
     { to: "/history", icon: Clock, label: t('dailyRecord') },
+    { to: "/translator", icon: Languages, label: t('intelligence') },
     { to: "/settings", icon: SettingsIcon, label: t('settings') },
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-100 px-3 sm:px-6 py-2 sm:py-4">
+    <nav className="sticky top-0 z-50 w-full bg-card-bg/80 backdrop-blur-xl border-b border-card-border px-3 sm:px-6 py-2 sm:py-4 transition-colors duration-500">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3 sm:gap-10">
           <Link to="/" className="flex items-center gap-2 sm:gap-3 text-brand-primary font-serif font-black text-lg sm:text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
@@ -184,7 +197,7 @@ function Navigation() {
           )}
 
           {user && (
-            <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-header-bg rounded-xl border border-card-border transition-colors">
               <div className="relative">
                 {user.photoURL ? (
                   <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-lg shadow-sm" referrerPolicy="no-referrer" />
@@ -204,6 +217,19 @@ function Navigation() {
           )}
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <button 
+              onClick={() => {
+                if (mode === 'light') setMode('dark');
+                else if (mode === 'dark') setMode('eye-comfort');
+                else setMode('light');
+              }}
+              className="p-1.5 sm:p-2 text-slate-400 hover:text-brand-primary hover:bg-slate-50 rounded-lg transition-all"
+              title="Change Display Mode"
+            >
+              {mode === 'light' && <Sun size={18} className="sm:w-[20px] sm:h-[20px]" />}
+              {mode === 'dark' && <Moon size={18} className="sm:w-[20px] sm:h-[20px]" />}
+              {mode === 'eye-comfort' && <Eye size={18} className="sm:w-[20px] sm:h-[20px]" />}
+            </button>
             <NotificationCenter />
             <button 
               onClick={() => logOut()}
@@ -229,7 +255,7 @@ function Navigation() {
             initial={{ opacity: 0, scaleY: 0 }}
             animate={{ opacity: 1, scaleY: 1 }}
             exit={{ opacity: 0, scaleY: 0 }}
-            className="lg:hidden mt-4 bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden origin-top"
+            className="lg:hidden mt-4 bg-card-bg rounded-2xl border border-card-border shadow-2xl overflow-hidden origin-top"
           >
             <div className="p-4 grid grid-cols-1 gap-2">
               {navItems.map((item) => (
@@ -243,7 +269,7 @@ function Navigation() {
                 />
               ))}
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <div className="p-4 bg-header-bg border-t border-card-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                  <div className="w-3 h-3 bg-brand-accent rounded-full animate-pulse" />
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Security Active</span>
@@ -275,7 +301,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
+      <div className="min-h-screen flex items-center justify-center bg-bg-main transition-colors duration-500">
         <div className="flex flex-col items-center gap-6">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
@@ -295,7 +321,7 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDFCFB] font-sans text-slate-900">
+    <div className="flex flex-col min-h-screen bg-bg-main font-sans text-text-main transition-colors duration-500">
       <Navigation />
       
       <main className="flex-1 p-0 sm:p-6 lg:p-12 overflow-x-hidden">
@@ -304,10 +330,13 @@ function AppContent() {
             <Routes>
               <Route path="/" element={<PageTransition><UnifiedDashboard /></PageTransition>} />
               <Route path="/orders" element={<PageTransition><OrderList /></PageTransition>} />
+              <Route path="/purchases" element={<PageTransition><PurchaseList /></PageTransition>} />
               <Route path="/customers" element={<PageTransition><CustomerList /></PageTransition>} />
+              <Route path="/suppliers" element={<PageTransition><SupplierList /></PageTransition>} />
               <Route path="/products" element={<PageTransition><ProductList /></PageTransition>} />
               <Route path="/dues" element={<PageTransition><DueManagement /></PageTransition>} />
               <Route path="/history" element={<PageTransition><TransactionHistory /></PageTransition>} />
+              <Route path="/translator" element={<PageTransition><Translator /></PageTransition>} />
               <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
