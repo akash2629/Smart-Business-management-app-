@@ -3,6 +3,7 @@ import { Languages, ArrowRightLeft, Copy, Check, Sparkles, Wand2 } from 'lucide-
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useLanguage } from '../context/LanguageContext';
+import { translateText } from '../services/geminiService';
 
 export default function Translator() {
   const { language, t } = useLanguage();
@@ -16,16 +17,8 @@ export default function Translator() {
     if (!inputText.trim()) return;
     setLoading(true);
     try {
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: inputText, targetLang }),
-      });
-      
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      
-      setOutputText(data.translatedText);
+      const translatedText = await translateText(inputText, targetLang);
+      setOutputText(translatedText);
       toast.success('Translation complete');
     } catch (error: any) {
       toast.error(error.message || 'Translation failed');

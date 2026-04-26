@@ -51,54 +51,10 @@ try {
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// Initialize Gemini with safety checks
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-
 async function startServer() {
   const app = express();
   app.use(express.json());
   app.use(cors());
-
-  // AI Translation Endpoint
-  app.post('/api/translate', async (req, res) => {
-    const { text, targetLang } = req.body;
-    
-    if (!text || !targetLang) {
-      return res.status(400).json({ error: 'Text and targetLang are required' });
-    }
-
-    if (!genAI) {
-      console.warn('GEMINI_API_KEY is missing. Falling back to simple mock or error.');
-      return res.status(503).json({ error: 'AI Service currently unavailable (API Key missing)' });
-    }
-
-    try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
-      const prompt = `You are a professional bilingual translator for Bangla (Bengali) and English.
-Task: Translate the following text into ${targetLang === 'bn' ? 'Bangla' : 'English'}.
-Context: This is for a business/shop management application.
-Rules:
-1. Preserve exactly all formatting, HTML tags, and placeholders if present.
-2. Maintain a professional yet natural tone.
-3. If the input is empty or just whitespace, return it as is.
-4. Output ONLY the translated text. Do not provide explanations or meta-commentary.
-
-Text to translate:
-"${text}"`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const translatedText = response.text().trim();
-      
-      res.json({ translatedText });
-    } catch (error: any) {
-      console.error('Translation Error:', error);
-      res.status(500).json({ error: 'Translation failed', details: error.message });
-    }
-  });
 
   // Data Reset Endpoints
   app.post('/api/request-reset', async (req, res) => {
