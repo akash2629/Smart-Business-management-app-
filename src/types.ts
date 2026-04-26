@@ -6,6 +6,7 @@ export interface Product {
   stock: number;
   buyPrice?: number;
   salePrice?: number;
+  stockAlert?: number;
   images?: string[];
   ownerId?: string;
 }

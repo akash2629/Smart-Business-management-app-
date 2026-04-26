@@ -24,6 +24,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export default function OrderList() {
   const { user } = useAuth();
@@ -122,6 +123,7 @@ export default function OrderList() {
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
+    const path = `users/${user.uid}/orders`;
     try {
       const ordersQ = query(collection(db, 'users', user.uid, 'orders'), orderBy('createdAt', 'desc'));
       const customersQ = collection(db, 'users', user.uid, 'customers');
@@ -146,8 +148,7 @@ export default function OrderList() {
       setCustomers(customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Customer[]);
       setProducts(productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[]);
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to fetch data');
+      handleFirestoreError(error, OperationType.GET, path);
     } finally {
       setLoading(false);
     }
@@ -173,6 +174,8 @@ export default function OrderList() {
       let orderRef;
       const ordersColRef = collection(db, 'users', user.uid, 'orders');
       
+      const orderPath = editingOrderId ? `users/${user.uid}/orders/${editingOrderId}` : `users/${user.uid}/orders`;
+
       if (editingOrderId) {
         orderRef = doc(ordersColRef, editingOrderId);
         // For updates, we delete existing items first and re-add them 
@@ -220,8 +223,7 @@ export default function OrderList() {
       resetOrderForm();
       fetchData();
     } catch (error) {
-      console.error(error);
-      toast.error(editingOrderId ? 'Failed to update order' : 'Failed to create order');
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/orders`);
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, Barcode, Layers, X, Download, Image as ImageIcon, Upload, Loader2, Camera } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, Barcode, Layers, X, Download, Image as ImageIcon, Upload, Loader2, Camera, Clock } from 'lucide-react';
 import { BdtSign } from './Icons';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export default function ProductList() {
   const { user } = useAuth();
@@ -36,8 +37,10 @@ export default function ProductList() {
     stock: 0,
     buyPrice: 0,
     salePrice: 0,
+    stockAlert: 0,
     images: []
   });
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export default function ProductList() {
   const fetchProducts = async () => {
     if (!user) return;
     setLoading(true);
+    const path = `users/${user.uid}/products`;
     try {
       const querySnapshot = await getDocs(collection(db, 'users', user.uid, 'products'));
       const data = querySnapshot.docs.map(doc => ({
@@ -57,7 +61,7 @@ export default function ProductList() {
       })) as Product[];
       setProducts(data);
     } catch (error) {
-      toast.error('Failed to fetch products');
+      handleFirestoreError(error, OperationType.GET, path);
     } finally {
       setLoading(false);
     }
@@ -143,27 +147,39 @@ export default function ProductList() {
 
     try {
       if (editingProduct?.id) {
-        const productRef = doc(db, 'users', user.uid, 'products', editingProduct.id);
-        await updateDoc(productRef, {
-          name: formData.name,
-          code: formData.code,
-          price: formData.price,
-          stock: formData.stock,
-          buyPrice: formData.buyPrice || 0,
-          salePrice: formData.salePrice || 0,
-          images: formData.images || []
-        });
-        toast.success('Product updated');
+        const path = `users/${user.uid}/products/${editingProduct.id}`;
+        try {
+          const productRef = doc(db, 'users', user.uid, 'products', editingProduct.id);
+          await updateDoc(productRef, {
+            name: formData.name,
+            code: formData.code,
+            price: formData.price,
+            stock: formData.stock,
+            buyPrice: formData.buyPrice || 0,
+            salePrice: formData.salePrice || 0,
+            stockAlert: formData.stockAlert || 0,
+            images: formData.images || []
+          });
+          toast.success('Product updated');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, path);
+        }
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'products'), {
-          ...formData,
-          ownerId: user.uid
-        });
-        toast.success('Product added');
+        const path = `users/${user.uid}/products`;
+        try {
+          await addDoc(collection(db, 'users', user.uid, 'products'), {
+            ...formData,
+            stockAlert: formData.stockAlert || 0,
+            ownerId: user.uid
+          });
+          toast.success('Product added');
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, path);
+        }
       }
       setIsModalOpen(false);
       setEditingProduct(null);
-      setFormData({ name: '', code: '', price: 0, stock: 0, images: [] });
+      setFormData({ name: '', code: '', price: 0, stock: 0, buyPrice: 0, salePrice: 0, stockAlert: 0, images: [] });
       fetchProducts();
     } catch (error) {
       toast.error('Operation failed');
@@ -172,12 +188,13 @@ export default function ProductList() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?') || !user) return;
+    const path = `users/${user.uid}/products/${id}`;
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'products', id));
       toast.success('Product deleted');
       fetchProducts();
     } catch (error) {
-      toast.error('Delete failed');
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   };
 
@@ -256,6 +273,7 @@ export default function ProductList() {
                 <th className="data-grid-header">{t('registryCode')}</th>
                 <th className="data-grid-header">Buy Price</th>
                 <th className="data-grid-header">Sale Price</th>
+                <th className="data-grid-header">Stock Alert</th>
                 <th className="data-grid-header">{t('stockLevel')}</th>
                 <th className="data-grid-header text-right">{t('actions')}</th>
               </tr>
@@ -287,6 +305,7 @@ export default function ProductList() {
                   </td>
                   <td className="px-6 py-5 font-bold text-slate-900 tabular-nums text-sm">{formatCurrency(product.buyPrice || 0)}</td>
                   <td className="px-6 py-5 font-bold text-slate-900 tabular-nums text-sm">{formatCurrency(product.salePrice || 0)}</td>
+                  <td className="px-6 py-5 font-bold text-slate-400 tabular-nums text-sm">{product.stockAlert || 0}</td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-3">
@@ -393,14 +412,25 @@ export default function ProductList() {
                     <div className="flex items-center gap-2">
                        <div className={cn(
                         "w-1.5 h-1.5 rounded-full shadow-sm",
-                        product.stock > 10 ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
+                        product.stock > (product.stockAlert || 10) ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
                       )} />
                       <span className={cn(
                         "font-black text-xs tabular-nums",
-                        product.stock > 10 ? "text-emerald-600" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
+                        product.stock > (product.stockAlert || 10) ? "text-emerald-600" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
                       )}>{product.stock} Units</span>
                     </div>
                   </div>
+                  {product.images && product.images.length > 0 && (
+                    <div className="flex flex-col mt-2">
+                      <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">View Info</label>
+                      <button 
+                        onClick={() => setPreviewImage(product.images![0])}
+                        className="text-brand-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                      >
+                        <ImageIcon size={10} /> View Photo
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -409,6 +439,34 @@ export default function ProductList() {
       </div>
 
       {/* Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewImage(null)}
+              className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative z-10 max-w-4xl w-full"
+            >
+              <button 
+                onClick={() => setPreviewImage(null)}
+                className="absolute -top-12 right-0 text-white hover:text-slate-300 transition-colors"
+              >
+                <X size={32} />
+              </button>
+              <img src={previewImage} alt="Preview" className="w-full h-auto rounded-3xl" referrerPolicy="no-referrer" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center sm:p-4">
@@ -558,16 +616,28 @@ export default function ProductList() {
                   </div>
                   <div>
                     <label className="detail-label text-[8px] sm:text-[10px] mb-1.5">Stock</label>
-                    <div className="relative">
-                      <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                      <input 
-                        required
-                        type="number" 
-                        placeholder="0"
-                        className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
-                        value={formData.stock || 0}
-                        onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="relative">
+                        <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                        <input 
+                          required
+                          type="number" 
+                          placeholder="Current Stock"
+                          className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
+                          value={formData.stock || 0}
+                          onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
+                        />
+                      </div>
+                      <div className="relative">
+                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                        <input 
+                          type="number" 
+                          placeholder="Alert at..."
+                          className="w-full pl-11 pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/50 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none font-bold text-slate-900 transition-all placeholder:text-slate-300 tabular-nums text-xs sm:text-base h-11 sm:h-auto"
+                          value={formData.stockAlert || 0}
+                          onChange={(e) => setFormData({...formData, stockAlert: parseInt(e.target.value) || 0})}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

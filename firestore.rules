@@ -65,7 +65,7 @@ service cloud.firestore {
             // Action: Stock Update (most common)
             incoming().diff(existing()).affectedKeys().hasOnly(['stock']) ||
             // Action: Edit Product
-            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'price', 'stock', 'images'])
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'price', 'stock', 'images', 'buyPrice', 'salePrice', 'stockAlert'])
           );
         allow delete: if isOwner(userId);
       }
@@ -75,6 +75,9 @@ service cloud.firestore {
           && data.code is string && data.code.size() <= 100
           && data.price is number && data.price >= 0
           && data.stock is number
+          && (!data.keys().hasAny(['buyPrice']) || data.buyPrice is number)
+          && (!data.keys().hasAny(['salePrice']) || data.salePrice is number)
+          && (!data.keys().hasAny(['stockAlert']) || data.stockAlert is number)
           && (data.images is list || !data.keys().hasAny(['images']));
       }
 
@@ -100,13 +103,13 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidOrder(incoming())
           && (
             // Action: Payment Update
-            incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt'])
+            incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt', 'totalDiscount'])
           );
         allow delete: if isOwner(userId);
 
         match /items/{itemId} {
           allow read: if isOwner(userId);
-          allow write: if isOwner(userId);
+          allow write: if isOwner(userId) && isValidOrderItem(incoming());
         }
       }
 
@@ -114,8 +117,17 @@ service cloud.firestore {
         return data.customerId is string && isValidId(data.customerId)
           && data.totalAmount is number && data.totalAmount >= 0
           && data.paidAmount is number && data.paidAmount >= 0
+          && (!data.keys().hasAny(['totalDiscount']) || data.totalDiscount is number)
           && data.status in ['Paid', 'Due', 'Quotation']
           && (data.type in ['Invoice', 'Quotation', 'Purchase', 'Opening Balance', 'Entry']);
+      }
+
+      function isValidOrderItem(data) {
+        return data.productId is string && isValidId(data.productId)
+          && data.quantity is number && data.quantity >= 0
+          && data.price is number && data.price >= 0
+          && (!data.keys().hasAny(['discount']) || data.discount is number)
+          && (!data.keys().hasAny(['productName']) || data.productName is string);
       }
 
       // Payments

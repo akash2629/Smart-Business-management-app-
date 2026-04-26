@@ -32,6 +32,7 @@ import DueManagement from './components/DueManagement';
 import TransactionHistory from './components/TransactionHistory';
 import UnifiedDashboard from './components/UnifiedDashboard';
 import Settings from './components/Settings';
+import NotificationCenter from './components/NotificationCenter';
 import { cn } from './lib/utils';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
@@ -203,6 +204,7 @@ function Navigation() {
           )}
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <NotificationCenter />
             <button 
               onClick={() => logOut()}
               className="p-1 px-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
