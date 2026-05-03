@@ -132,12 +132,14 @@ export default function UnifiedDashboard() {
       const ordersQ = collection(db, 'users', user.uid, 'orders');
       const customersQ = collection(db, 'users', user.uid, 'customers');
       const productsQ = collection(db, 'users', user.uid, 'products');
+      const suppliersQ = collection(db, 'users', user.uid, 'suppliers');
       const expensesQ = collection(db, 'users', user.uid, 'expenses');
 
-      const [ordersSnap, customersSnap, productsSnap, expensesSnap] = await Promise.all([
+      const [ordersSnap, customersSnap, productsSnap, suppliersSnap, expensesSnap] = await Promise.all([
         getDocs(ordersQ),
         getDocs(customersQ),
         getDocs(productsQ),
+        getDocs(suppliersQ),
         getDocs(expensesQ)
       ]);
 
@@ -188,6 +190,7 @@ export default function UnifiedDashboard() {
 
       setData({
         sales, purchase, customers: customersSnap.size, products: productsSnap.size,
+        suppliers: suppliersSnap.size,
         paid: totalPaid, due: totalDue, todaySales, todayDue,
         monthlySales, monthlyDue, totalExpenses, todayExpenses, monthlyExpenses
       });
@@ -317,16 +320,77 @@ export default function UnifiedDashboard() {
         </div>
       </header>
 
-      {/* KPI Section - Flush on mobile */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 sm:gap-6 border-b border-slate-100 sm:border-none">
+      {/* Command Center & Feature Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 px-3 sm:px-0">
         {loadingMetrics ? (
-          Array(4).fill(0).map((_, i) => <div key={i} className="h-14 sm:h-24 bg-slate-50 animate-pulse border-r border-slate-50 last:border-none" />)
+          Array(6).fill(0).map((_, i) => <div key={i} className="h-20 sm:h-24 bg-slate-50 animate-pulse rounded-2xl" />)
         ) : (
           <>
-            <StatCard title={t('todaySales')} value={formatCurrency(data?.todaySales || 0)} icon={TrendingUp} color="bg-brand-primary" />
-            <StatCard title={t('totalRevenue')} value={formatCurrency(data?.sales || 0)} icon={TrendingUp} color="bg-indigo-600" />
-            <StatCard title={t('totalDue')} value={formatCurrency(data?.due || 0)} icon={Clock} color="bg-rose-500" />
-            <StatCard title={t('products')} value={data?.products || 0} icon={Package} color="bg-amber-500" />
+            <div onClick={() => navigate('/orders')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
+                  <ShoppingCart size={16} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+              </div>
+              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('orders')}</p>
+              <h4 className="text-sm sm:text-xl font-black text-slate-900 group-hover:text-white tabular-nums">{data?.sales ? formatCurrency(data.sales).split('.')[0] : '0'}</h4>
+            </div>
+
+            <div onClick={() => navigate('/products')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
+                  <Package size={16} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+              </div>
+              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('products')}</p>
+              <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white">{data?.products || 0} items</h4>
+            </div>
+
+            <div onClick={() => navigate('/customers')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
+                  <Users size={16} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+              </div>
+              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('customers')}</p>
+              <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white">{data?.customers || 0} people</h4>
+            </div>
+
+            <div onClick={() => navigate('/suppliers')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
+                  <UserIcon size={16} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+              </div>
+              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('suppliers')}</p>
+              <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white">{(data as any)?.suppliers || 0} entities</h4>
+            </div>
+
+            <div onClick={() => navigate('/dues')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
+                  <Clock size={16} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+              </div>
+              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('totalDue')}</p>
+              <h4 className="text-sm sm:text-xl font-black text-slate-900 group-hover:text-white tabular-nums">{formatCurrency(data?.due || 0).split('.')[0]}</h4>
+            </div>
+
+            <div onClick={() => navigate('/costing')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
+                  <TrendingDown size={16} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+              </div>
+              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('totalExpenses')}</p>
+              <h4 className="text-sm sm:text-xl font-black text-slate-900 group-hover:text-white tabular-nums">{formatCurrency(data?.totalExpenses || 0).split('.')[0]}</h4>
+            </div>
           </>
         )}
       </div>
@@ -337,8 +401,8 @@ export default function UnifiedDashboard() {
         <div className="xl:col-span-8 space-y-0 sm:space-y-10">
           
           {/* New Order Form (Directly on Page) */}
-          <section className="bg-white sm:premium-card overflow-hidden">
-            <div className="p-4 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <section className="bg-white lg:bg-transparent overflow-hidden">
+            <div className="p-4 sm:p-8 border-b border-slate-100 lg:border-none bg-slate-50/30 lg:bg-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
                   <ShoppingCart size={18} className="sm:w-[18px] sm:h-[18px]" />
@@ -358,7 +422,7 @@ export default function UnifiedDashboard() {
               </div>
             </div>
             
-            <form onSubmit={handleOrderSubmit} className="p-3 sm:p-8 space-y-4 sm:space-y-8 bg-white">
+            <form onSubmit={handleOrderSubmit} className="p-3 sm:p-8 space-y-4 sm:space-y-8 bg-white lg:rounded-[3rem] lg:border lg:border-slate-100">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
                 <div className="md:col-span-2">
                   <label className="detail-label text-[7px] sm:text-[9px] mb-1 sm:mb-2 px-1">{t('recipientProfile')}</label>
@@ -562,14 +626,14 @@ export default function UnifiedDashboard() {
         <div className="xl:col-span-4 space-y-0 sm:space-y-10">
           
           {/* Intelligence Reports */}
-          <section className="bg-white sm:premium-card p-4 sm:p-8 flex flex-col h-full border-b border-slate-100 sm:border-none">
+          <section className="bg-white lg:bg-transparent border-b border-slate-100 lg:border-none p-4 lg:p-0 flex flex-col h-full">
             <div className="mb-3 sm:mb-8">
               <h3 className="text-sm sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1">{t('journal')}</h3>
               <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest text-wrap">{t('recentInteraction')}</p>
             </div>
             <div className="space-y-2 sm:space-y-4 flex-1">
               {recentOrders.map((o) => (
-                <div key={o.id} className="p-2 sm:p-4 rounded-lg sm:rounded-2xl bg-slate-50/50 border border-slate-50 flex items-center justify-between hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all group">
+                <div key={o.id} className="p-2 sm:p-4 rounded-lg sm:rounded-2xl bg-white border border-slate-50 flex items-center justify-between hover:shadow-xl hover:shadow-slate-100 transition-all group">
                    <div className="flex items-center gap-2 sm:gap-4">
                       <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-md sm:rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500">
                          <FileText size={12} className="sm:w-[18px] sm:h-[18px]" />
@@ -609,8 +673,8 @@ export default function UnifiedDashboard() {
           </section>
 
           {/* Quick Stats Grid */}
-          <section className="grid grid-cols-2 xl:grid-cols-1 gap-0 sm:gap-4 border-b border-slate-100 sm:border-none">
-             <div className="bg-white sm:premium-card p-4 sm:p-6 border-r border-slate-100 sm:border-l-4 sm:border-emerald-500 sm:border-r-0">
+          <section className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-4 p-4 lg:p-0">
+             <div className="bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl lg:border-l-4 lg:border-emerald-500">
                 <div className="flex items-center justify-between gap-1">
                    <div>
                       <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Reserves</p>
@@ -621,7 +685,7 @@ export default function UnifiedDashboard() {
                    </div>
                 </div>
              </div>
-             <div className="bg-white sm:premium-card p-4 sm:p-6 sm:border-l-4 sm:border-rose-500">
+             <div className="bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl lg:border-l-4 lg:border-rose-500">
                 <div className="flex items-center justify-between gap-1">
                    <div>
                       <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Risk</p>
