@@ -198,9 +198,10 @@ function Navigation() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-card-bg/80 backdrop-blur-xl border-b border-card-border px-3 sm:px-6 py-2 sm:py-4 transition-colors duration-500">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3 sm:gap-10 overflow-hidden">
+    <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-card-bg/90 backdrop-blur-xl border-b border-card-border px-3 sm:px-6 py-2 sm:py-3 transition-all duration-500">
+      <div className="max-w-7xl mx-auto flex flex-col gap-2 sm:gap-3">
+        {/* Row 1: Logo & Tools */}
+        <div className="flex items-center justify-between w-full">
           <Link to="/" className="flex items-center gap-2 sm:gap-3 text-brand-primary font-serif font-black text-lg sm:text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-primary text-white rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
               <Store size={18} className="sm:w-[22px] sm:h-[22px]" />
@@ -208,77 +209,76 @@ function Navigation() {
             <span className="inline">SmartShop</span>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-1 overflow-x-auto invisible-scrollbar max-w-full pb-1">
-            {navItems.map((item) => (
-              <NavItem 
-                key={item.to}
-                to={item.to}
-                icon={item.icon}
-                label={item.label}
-                active={location.pathname === item.to}
-              />
-            ))}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {!isOnline && (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl font-bold text-[10px] uppercase tracking-widest border border-amber-100 shadow-sm animate-pulse">
+                <WifiOff size={14} />
+                <span>Offline Mode</span>
+              </div>
+            )}
+
+            {user && (
+              <div className="hidden sm:flex items-center gap-3 px-3 py-1 bg-header-bg rounded-xl border border-card-border transition-colors">
+                <div className="relative">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-lg shadow-sm" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">
+                      {user.displayName?.charAt(0) || 'U'}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                </div>
+                <div className="hidden md:block">
+                  <p className="text-xs font-black text-slate-900 leading-none">{user.displayName || 'User'}</p>
+                  <p className="text-[9px] font-black text-slate-500 mt-0.5 uppercase tracking-wider">{t('enterpriseAccess')}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1 sm:gap-2">
+              <button 
+                onClick={() => {
+                  if (mode === 'light') setMode('dark');
+                  else if (mode === 'dark') setMode('eye-comfort');
+                  else setMode('light');
+                }}
+                className="p-1.5 sm:p-2 text-slate-400 hover:text-brand-primary hover:bg-slate-50 rounded-lg transition-all"
+                title="Change Display Mode"
+              >
+                {mode === 'light' && <Sun size={18} className="sm:w-[20px] sm:h-[20px]" />}
+                {mode === 'dark' && <Moon size={18} className="sm:w-[20px] sm:h-[20px]" />}
+                {mode === 'eye-comfort' && <Eye size={18} className="sm:w-[20px] sm:h-[20px]" />}
+              </button>
+              <NotificationCenter />
+              <button 
+                onClick={() => logOut()}
+                className="p-1 px-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                title={t('signOut')}
+              >
+                <LogOut size={16} className="sm:w-[20px] sm:h-[20px]" />
+              </button>
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 bg-brand-primary text-white rounded-lg shadow-lg shadow-brand-primary/20 transition-all hover:opacity-90 ml-1"
+              >
+                {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {!isOnline && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl font-bold text-[10px] uppercase tracking-widest border border-amber-100 shadow-sm animate-pulse">
-              <WifiOff size={14} />
-              <span>Offline Mode</span>
-            </div>
-          )}
-
-          {user && (
-            <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-header-bg rounded-xl border border-card-border transition-colors">
-              <div className="relative">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-lg shadow-sm" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">
-                    {user.displayName?.charAt(0) || 'U'}
-                  </div>
-                )}
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-              </div>
-              <div className="hidden md:block">
-                <p className="text-xs font-black text-slate-900 leading-none">{user.displayName || 'User'}</p>
-                <p className="text-[8px] font-medium text-slate-400 mt-1 max-w-[120px] truncate">{user.email}</p>
-                <p className="text-[9px] font-black text-slate-500 mt-0.5 uppercase tracking-wider">{t('enterpriseAccess')}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button 
-              onClick={() => {
-                if (mode === 'light') setMode('dark');
-                else if (mode === 'dark') setMode('eye-comfort');
-                else setMode('light');
-              }}
-              className="p-1.5 sm:p-2 text-slate-400 hover:text-brand-primary hover:bg-slate-50 rounded-lg transition-all"
-              title="Change Display Mode"
-            >
-              {mode === 'light' && <Sun size={18} className="sm:w-[20px] sm:h-[20px]" />}
-              {mode === 'dark' && <Moon size={18} className="sm:w-[20px] sm:h-[20px]" />}
-              {mode === 'eye-comfort' && <Eye size={18} className="sm:w-[20px] sm:h-[20px]" />}
-            </button>
-            <NotificationCenter />
-            <button 
-              onClick={() => logOut()}
-              className="p-1 px-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-              title={t('signOut')}
-            >
-              <LogOut size={16} className="sm:w-[20px] sm:h-[20px]" />
-            </button>
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 bg-brand-primary text-white rounded-lg shadow-lg shadow-brand-primary/20 transition-all hover:opacity-90"
-            >
-              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-          </div>
+        {/* Row 2: Desktop Nav Items */}
+        <div className="hidden lg:flex items-center justify-center gap-1 border-t border-card-border pt-2 overflow-x-auto invisible-scrollbar">
+          {navItems.map((item) => (
+            <NavItem 
+              key={item.to}
+              to={item.to}
+              icon={item.icon}
+              label={item.label}
+              active={location.pathname === item.to}
+            />
+          ))}
         </div>
       </div>
 
@@ -364,7 +364,7 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-main font-sans text-text-main transition-colors duration-500 pt-[60px] sm:pt-[80px]">
+    <div className="flex flex-col min-h-screen bg-bg-main font-sans text-text-main transition-colors duration-500 pt-[60px] sm:pt-[70px] lg:pt-[110px]">
       <Navigation />
       
       <main className="flex-1 p-0 sm:p-6 lg:p-12 overflow-x-hidden">
