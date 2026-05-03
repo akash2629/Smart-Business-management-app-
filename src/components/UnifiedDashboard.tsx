@@ -293,13 +293,13 @@ export default function UnifiedDashboard() {
   return (
     <div className="space-y-0 sm:space-y-10 max-w-[1600px] mx-auto pb-4 sm:pb-20 px-0 sm:px-0 bg-[#FDFCFB]">
       {/* Header Section */}
-      <header className="flex flex-row items-center justify-between gap-2 sm:gap-6 px-4 py-2 sm:px-6 sm:py-3 bg-white/95 backdrop-blur-xl border-b border-slate-100 sticky top-[60px] sm:top-[70px] lg:top-[110px] z-40 transition-all duration-300 -mx-4 sm:-mx-6 sm:mb-4">
+      <header className="flex flex-row items-center justify-between gap-2 sm:gap-6 px-4 py-3 sm:px-0 sm:py-5 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none -mx-4 sm:mx-0 mb-2 sm:mb-6">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2 sm:gap-3 text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none">
             <div className="w-3 sm:w-5 h-[1.5px] bg-brand-primary"></div>
             Management Terminal
           </div>
-          <h1 className="text-lg sm:text-3xl font-serif font-black text-slate-900 tracking-tighter leading-none">SmartShop</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-black text-slate-900 tracking-tighter leading-none">SmartShop</h1>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Real-Time Intelligence</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
