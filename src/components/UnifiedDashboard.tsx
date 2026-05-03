@@ -326,89 +326,89 @@ export default function UnifiedDashboard() {
           Array(6).fill(0).map((_, i) => <div key={i} className="h-20 sm:h-24 bg-slate-50 animate-pulse rounded-2xl" />)
         ) : (
           <>
-            <div onClick={() => navigate('/orders')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
+            <div onClick={() => navigate('/orders')} className="group p-3 sm:p-2 hover:bg-slate-900 transition-all cursor-pointer rounded-xl lg:rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
                   <ShoppingCart size={16} />
                 </div>
-                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+                <ArrowUpRight size={14} className="text-slate-200 group-hover:text-white" />
               </div>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('orders')}</p>
-              <h4 className="text-sm sm:text-xl font-black text-slate-900 group-hover:text-white tabular-nums">{data?.sales ? formatCurrency(data.sales).split('.')[0] : '0'}</h4>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('orders')}</p>
+              <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white tabular-nums">{data?.sales ? formatCurrency(data.sales).split('.')[0] : '0'}</h4>
             </div>
 
-            <div onClick={() => navigate('/products')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
+            <div onClick={() => navigate('/products')} className="group p-3 sm:p-2 hover:bg-slate-900 transition-all cursor-pointer rounded-xl lg:rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
                   <Package size={16} />
                 </div>
-                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+                <ArrowUpRight size={14} className="text-slate-200 group-hover:text-white" />
               </div>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('products')}</p>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('products')}</p>
               <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white">{data?.products || 0} items</h4>
             </div>
 
-            <div onClick={() => navigate('/customers')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
+            <div onClick={() => navigate('/customers')} className="group p-3 sm:p-2 hover:bg-slate-900 transition-all cursor-pointer rounded-xl lg:rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
                   <Users size={16} />
                 </div>
-                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+                <ArrowUpRight size={14} className="text-slate-200 group-hover:text-white" />
               </div>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('customers')}</p>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('customers')}</p>
               <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white">{data?.customers || 0} people</h4>
             </div>
 
-            <div onClick={() => navigate('/suppliers')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
+            <div onClick={() => navigate('/suppliers')} className="group p-3 sm:p-2 hover:bg-slate-900 transition-all cursor-pointer rounded-xl lg:rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
                   <UserIcon size={16} />
                 </div>
-                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+                <ArrowUpRight size={14} className="text-slate-200 group-hover:text-white" />
               </div>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('suppliers')}</p>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('suppliers')}</p>
               <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white">{(data as any)?.suppliers || 0} entities</h4>
             </div>
 
-            <div onClick={() => navigate('/dues')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
+            <div onClick={() => navigate('/dues')} className="group p-3 sm:p-2 hover:bg-slate-900 transition-all cursor-pointer rounded-xl lg:rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
                   <Clock size={16} />
                 </div>
-                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+                <ArrowUpRight size={14} className="text-slate-200 group-hover:text-white" />
               </div>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('totalDue')}</p>
-              <h4 className="text-sm sm:text-xl font-black text-slate-900 group-hover:text-white tabular-nums">{formatCurrency(data?.due || 0).split('.')[0]}</h4>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('totalDue')}</p>
+              <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white tabular-nums">{formatCurrency(data?.due || 0).split('.')[0]}</h4>
             </div>
 
-            <div onClick={() => navigate('/costing')} className="group p-3 sm:p-5 bg-white border border-slate-100 rounded-2xl hover:bg-slate-900 transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
+            <div onClick={() => navigate('/costing')} className="group p-3 sm:p-2 hover:bg-slate-900 transition-all cursor-pointer rounded-xl lg:rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
                 <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center group-hover:bg-white/10 group-hover:text-white">
                   <TrendingDown size={16} />
                 </div>
-                <ArrowUpRight size={14} className="text-slate-300 group-hover:text-white" />
+                <ArrowUpRight size={14} className="text-slate-200 group-hover:text-white" />
               </div>
-              <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('totalExpenses')}</p>
-              <h4 className="text-sm sm:text-xl font-black text-slate-900 group-hover:text-white tabular-nums">{formatCurrency(data?.totalExpenses || 0).split('.')[0]}</h4>
+              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white/60">{t('totalExpenses')}</p>
+              <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-white tabular-nums">{formatCurrency(data?.totalExpenses || 0).split('.')[0]}</h4>
             </div>
           </>
         )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-0 sm:gap-10">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-0 sm:gap-6 lg:gap-10">
         
         {/* Left Column: Operation Zone */}
-        <div className="xl:col-span-8 space-y-0 sm:space-y-10">
+        <div className="xl:col-span-8 space-y-4 sm:space-y-6">
           
           {/* New Order Form (Directly on Page) */}
-          <section className="bg-white lg:bg-transparent overflow-hidden">
-            <div className="p-4 sm:p-8 border-b border-slate-100 lg:border-none bg-slate-50/30 lg:bg-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <section className="bg-transparent overflow-hidden">
+            <div className="p-4 sm:p-0 border-b border-slate-100 lg:border-none bg-slate-50/30 lg:bg-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
-                  <ShoppingCart size={18} className="sm:w-[18px] sm:h-[18px]" />
+                  <Plus size={18} className="sm:w-[22px] sm:h-[22px]" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight">{t('invoiceNode')}</h2>
+                  <h2 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tighter uppercase">{t('manualEntry')}</h2>
                   <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('marketEmission')}</p>
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function UnifiedDashboard() {
               </div>
             </div>
             
-            <form onSubmit={handleOrderSubmit} className="p-3 sm:p-8 space-y-4 sm:space-y-8 bg-white lg:rounded-[3rem] lg:border lg:border-slate-100">
+            <form onSubmit={handleOrderSubmit} className="p-4 sm:p-10 space-y-6 sm:space-y-10 bg-white border border-slate-100 rounded-[2rem] sm:rounded-[3rem] shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
                 <div className="md:col-span-2">
                   <label className="detail-label text-[7px] sm:text-[9px] mb-1 sm:mb-2 px-1">{t('recipientProfile')}</label>
@@ -517,22 +517,25 @@ export default function UnifiedDashboard() {
                 </div>
               </div>
 
-              <div className="bg-slate-900 rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-8 shadow-2xl relative overflow-hidden">
-                <div className="flex flex-col items-center sm:items-start w-full sm:w-auto">
-                   <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-1 sm:mb-1 text-center sm:text-left">{t('totalValuation')}</p>
-                   <h3 className="text-2xl sm:text-4xl font-black tracking-tighter tabular-nums text-brand-accent truncate max-w-full leading-none">{formatCurrency(calculateTotal())}</h3>
+              <div className="bg-slate-900 rounded-[2rem] sm:rounded-[3rem] p-5 sm:p-10 text-white flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-10 shadow-2xl relative overflow-hidden">
+                <div className="flex flex-col items-center sm:items-start w-full sm:w-auto relative z-10">
+                   <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                      <div className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
+                      <p className="text-white/40 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] font-mono">{t('financialDataPreview')}</p>
+                   </div>
+                   <h3 className="text-3xl sm:text-6xl font-black tracking-tighter tabular-nums text-brand-accent truncate max-w-full leading-none">{formatCurrency(calculateTotal())}</h3>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                   <div className="flex-1 sm:w-40">
-                      <p className="text-white/40 text-[7px] sm:text-[9px] font-black uppercase tracking-widest mb-1 sm:hidden text-center">{t('paidAmount')}</p>
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto relative z-10">
+                   <div className="w-full sm:w-48">
+                      <p className="text-white/40 text-[8px] sm:text-[10px] font-black uppercase tracking-widest mb-1 sm:mb-2 text-center sm:text-left">{t('paidAmount')}</p>
                       <input 
                         type="number"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-2 sm:px-4 py-2 sm:py-3 text-xl sm:text-xl font-black outline-none focus:border-brand-accent transition-all tabular-nums text-center h-12 sm:h-auto"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 sm:py-4 text-2xl sm:text-3xl font-black outline-none focus:border-brand-accent transition-all tabular-nums text-center h-14 sm:h-auto"
                         value={orderForm.paidAmount || 0}
                         onChange={(e) => setOrderForm({...orderForm, paidAmount: parseFloat(e.target.value) || 0})}
                       />
                    </div>
-                   <button type="submit" className="px-6 sm:px-6 py-2 sm:py-4 bg-brand-accent text-slate-900 rounded-xl font-black text-xs sm:text-[10px] uppercase tracking-widest sm:tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/20 h-12 sm:h-auto">
+                   <button type="submit" className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-brand-accent text-slate-900 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-accent/20 h-14 sm:h-auto">
                       {t('commit')}
                    </button>
                 </div>
@@ -543,8 +546,8 @@ export default function UnifiedDashboard() {
           </section>
 
           {/* Financial Reports Node */}
-          <section className="bg-white sm:premium-card p-4 sm:p-8 border-b border-slate-100 sm:border-none">
-            <div className="flex items-center justify-between mb-4 sm:mb-8">
+          <section className="bg-transparent p-4 sm:p-0 border-b border-slate-100 lg:border-none">
+            <div className="flex items-center justify-between mb-4 sm:mb-8 mt-4 sm:mt-10">
               <div>
                 <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">{t('financialReports')}</h3>
                 <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('aggregateReports')}</p>
@@ -601,8 +604,8 @@ export default function UnifiedDashboard() {
           </section>
 
           {/* Sales Trends Chart */}
-          <section className="bg-white sm:premium-card p-4 sm:p-8 border-b border-slate-100 sm:border-none">
-            <div className="mb-6 sm:mb-10">
+          <section className="bg-transparent p-4 sm:p-0 border-b border-slate-100 lg:border-none">
+            <div className="mb-6 sm:mb-10 mt-4 sm:mt-12">
               <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">{t('salesPerformance')}</h3>
               <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('revenueAllocation')}</p>
             </div>
@@ -631,9 +634,9 @@ export default function UnifiedDashboard() {
               <h3 className="text-sm sm:text-lg font-bold text-slate-900 mb-0.5 sm:mb-1">{t('journal')}</h3>
               <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest text-wrap">{t('recentInteraction')}</p>
             </div>
-            <div className="space-y-2 sm:space-y-4 flex-1">
+            <div className="space-y-1 sm:space-y-2 flex-1">
               {recentOrders.map((o) => (
-                <div key={o.id} className="p-2 sm:p-4 rounded-lg sm:rounded-2xl bg-white border border-slate-50 flex items-center justify-between hover:shadow-xl hover:shadow-slate-100 transition-all group">
+                <div key={o.id} className="p-2 sm:p-4 rounded-none border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-all group last:border-none">
                    <div className="flex items-center gap-2 sm:gap-4">
                       <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-md sm:rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all duration-500">
                          <FileText size={12} className="sm:w-[18px] sm:h-[18px]" />
@@ -673,26 +676,26 @@ export default function UnifiedDashboard() {
           </section>
 
           {/* Quick Stats Grid */}
-          <section className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-4 p-4 lg:p-0">
-             <div className="bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl lg:border-l-4 lg:border-emerald-500">
+          <section className="grid grid-cols-2 lg:grid-cols-1 gap-4 sm:gap-6 p-4 lg:p-0">
+             <div className="p-4 sm:p-0 lg:border-l-4 lg:border-emerald-500 lg:pl-6">
                 <div className="flex items-center justify-between gap-1">
                    <div>
-                      <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Reserves</p>
-                      <h4 className="text-[11px] sm:text-xl font-black text-slate-900 tabular-nums truncate max-w-[60px] sm:max-w-none leading-none">{formatCurrency(data?.paid || 0)}</h4>
+                      <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 sm:mb-2">Reserves</p>
+                      <h4 className="text-[14px] sm:text-3xl font-black text-slate-900 tabular-nums truncate leading-none">{formatCurrency(data?.paid || 0)}</h4>
                    </div>
-                   <div className="w-6 h-6 sm:w-12 sm:h-12 rounded-md sm:rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-                      <Wallet size={12} className="sm:w-[20px] sm:h-[20px]" />
+                   <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Wallet size={16} className="sm:w-[24px] sm:h-[24px]" />
                    </div>
                 </div>
              </div>
-             <div className="bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl lg:border-l-4 lg:border-rose-500">
+             <div className="p-4 sm:p-0 lg:border-l-4 lg:border-rose-500 lg:pl-6">
                 <div className="flex items-center justify-between gap-1">
                    <div>
-                      <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5 sm:mb-1">Risk</p>
-                      <h4 className="text-[11px] sm:text-xl font-black text-slate-900 tabular-nums truncate max-w-[60px] sm:max-w-none leading-none">{formatCurrency(data?.due || 0)}</h4>
+                      <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 sm:mb-2">Risk</p>
+                      <h4 className="text-[14px] sm:text-3xl font-black text-slate-900 tabular-nums truncate leading-none">{formatCurrency(data?.due || 0)}</h4>
                    </div>
-                   <div className="w-6 h-6 sm:w-12 sm:h-12 rounded-md sm:rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
-                      <RefreshCcw size={12} className="sm:w-[20px] sm:h-[20px]" />
+                   <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+                      <RefreshCcw size={16} className="sm:w-[24px] sm:h-[24px]" />
                    </div>
                 </div>
              </div>
