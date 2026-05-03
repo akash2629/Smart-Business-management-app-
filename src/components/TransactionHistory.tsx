@@ -217,34 +217,43 @@ export default function TransactionHistory() {
             </tbody>
           </table>
 
-          {/* Mobile Detailed Flow (No Cards) */}
-          <div className="md:hidden divide-y divide-slate-100 bg-white">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden p-4 space-y-4 bg-slate-50/30">
             {loading ? (
               <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredPayments.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Transactions</div>
             ) : filteredPayments.map((p) => (
-              <div key={p.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
+              <div key={p.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
-                      <Wallet size={20} />
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
+                      {p.method?.toLowerCase().includes('cash') ? <Wallet size={20} /> : <TrendingUp size={20} />}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{p.method}</p>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">
-                        {p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleTimeString() : 'Recent Activity'}
-                      </p>
+                      <p className="font-black text-slate-900 text-[15px] tracking-tight">{p.method}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock size={10} className="text-slate-300" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                          {p.createdAt?.toDate ? new Date(p.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-black text-emerald-600 tabular-nums leading-none">{formatCurrency(p.amount)}</p>
+                    <div className="flex items-center justify-end gap-1 text-emerald-600">
+                       <ArrowUpRight size={12} />
+                       <p className="text-[16px] font-black tabular-nums leading-none">{formatCurrency(p.amount).replace('৳', '')}</p>
+                    </div>
                     <p className="text-[8px] font-black text-emerald-500/50 uppercase tracking-widest mt-1">Settlement</p>
                   </div>
                 </div>
                 <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                   <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Audit Auth Key</p>
-                   <p className="text-[10px] font-mono font-bold text-slate-900 truncate">{p.id}</p>
+                   <div className="flex items-center justify-between mb-1.5">
+                     <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">Transaction Registry</p>
+                     <p className="text-[9px] font-bold text-slate-300">ID</p>
+                   </div>
+                   <p className="text-[10px] font-mono font-bold text-slate-500 truncate bg-white p-2 rounded-lg border border-slate-100">{p.id}</p>
                 </div>
               </div>
             ))}

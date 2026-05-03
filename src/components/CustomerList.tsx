@@ -475,27 +475,34 @@ export default function CustomerList() {
             </tbody>
           </table>
 
-          {/* Mobile Detailed Flow (No Cards) */}
-          <div className="md:hidden divide-y divide-slate-100 bg-white">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden p-4 space-y-4 bg-slate-50/30">
             {loading ? (
               <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredCustomers.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Customers Found</div>
             ) : filteredCustomers.map((customer) => (
-              <div key={customer.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
+              <div key={customer.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-black shadow-xl shadow-slate-200">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-black shadow-lg shadow-slate-200">
                       {customer.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{customer.name}</p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">{customer.phone}</p>
+                      <p className="font-black text-slate-900 text-[15px] tracking-tight truncate max-w-[150px]">{customer.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Phone size={10} className="text-slate-300" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{customer.phone}</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => viewProfile(customer)} className="p-2 sm:p-2.5 bg-emerald-50 rounded-xl text-emerald-500 hover:bg-emerald-100 transition-colors border border-emerald-100">
-                      <History size={16} />
+                    <button 
+                      onClick={() => viewProfile(customer)} 
+                      className="w-9 h-9 flex items-center justify-center bg-emerald-50 rounded-xl text-emerald-500 hover:bg-emerald-100 transition-colors border border-emerald-100 shadow-sm shadow-emerald-100/50"
+                      title={t('viewProfile')}
+                    >
+                      <Eye size={16} />
                     </button>
                     <button 
                       onClick={() => {
@@ -503,11 +510,14 @@ export default function CustomerList() {
                         setFormData(customer);
                         setIsModalOpen(true);
                       }}
-                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
+                      className="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
                     >
                       <Edit2 size={16} />
                     </button>
-                    <button onClick={() => handleDelete(customer.id!)} className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100">
+                    <button 
+                      onClick={() => handleDelete(customer.id!)} 
+                      className="w-9 h-9 flex items-center justify-center bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>

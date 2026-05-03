@@ -181,6 +181,21 @@ service cloud.firestore {
           && data.status in ['Paid', 'Due']
           && (!data.keys().hasAny(['note']) || data.note is string);
       }
+
+      // Expenses
+      match /expenses/{expenseId} {
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidExpense(incoming());
+        allow update: if isOwner(userId) && isValidExpense(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      function isValidExpense(data) {
+        return data.category is string && data.category.size() >= 1
+          && data.amount is number && data.amount >= 0
+          && data.date is string
+          && (!data.keys().hasAny(['description']) || data.description is string);
+      }
     }
   }
 }

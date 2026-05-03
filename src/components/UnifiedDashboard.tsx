@@ -61,22 +61,22 @@ import { useNavigate } from 'react-router-dom';
 
 function StatCard({ title, value, icon: Icon, color, trend }: { title: string, value: string | number, icon: any, color: string, trend?: string }) {
   return (
-    <div className="bg-white sm:premium-card p-3 sm:p-6 group border-b border-slate-100 sm:border-none">
+    <div className="bg-white sm:premium-card p-4 sm:p-6 group border-b border-slate-100 sm:border-none">
       <div className="flex items-start justify-between gap-1">
-        <div className="space-y-1 sm:space-y-4">
-          <div className="space-y-0.5 sm:space-y-1">
-            <p className="text-[7px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest sm:tracking-[0.2em]">{title}</p>
-            <h3 className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight tabular-nums truncate max-w-[80px] sm:max-w-none leading-none">{value}</h3>
+        <div className="space-y-2 sm:space-y-4">
+          <div className="space-y-1">
+            <p className="text-[8px] sm:text-[9px] font-black text-slate-300 uppercase tracking-widest sm:tracking-[0.2em]">{title}</p>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight tabular-nums truncate max-w-full leading-none">{value}</h3>
           </div>
           {trend && (
             <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[8px] font-bold">
-              <TrendingUp size={8} />
+              <TrendingUp size={10} />
               {trend}
             </div>
           )}
         </div>
-        <div className={cn("p-1.5 sm:p-3 rounded-lg sm:rounded-xl text-white shadow-lg shrink-0", color)}>
-          <Icon size={12} className="sm:w-[18px] sm:h-[18px]" />
+        <div className={cn("p-2 sm:p-3 rounded-lg sm:rounded-xl text-white shadow-lg shrink-0", color)}>
+          <Icon size={16} className="sm:w-[18px] sm:h-[18px]" />
         </div>
       </div>
     </div>
@@ -132,19 +132,23 @@ export default function UnifiedDashboard() {
       const ordersQ = collection(db, 'users', user.uid, 'orders');
       const customersQ = collection(db, 'users', user.uid, 'customers');
       const productsQ = collection(db, 'users', user.uid, 'products');
+      const expensesQ = collection(db, 'users', user.uid, 'expenses');
 
-      const [ordersSnap, customersSnap, productsSnap] = await Promise.all([
+      const [ordersSnap, customersSnap, productsSnap, expensesSnap] = await Promise.all([
         getDocs(ordersQ),
         getDocs(customersQ),
-        getDocs(productsQ)
+        getDocs(productsQ),
+        getDocs(expensesQ)
       ]);
 
       const orders = ordersSnap.docs.map(doc => doc.data());
+      const expenses = expensesSnap.docs.map(doc => doc.data());
       
       const sales = orders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const purchase = orders.filter(o => o.type === 'Purchase').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const totalPaid = orders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
       const totalDue = orders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
       const now = new Date();
       const today = new Date();
@@ -158,20 +162,34 @@ export default function UnifiedDashboard() {
         return d.getTime() === today.getTime();
       });
 
+      const todayExpensesData = expenses.filter(e => {
+        const d = new Date(e.date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() === today.getTime();
+      });
+
       const monthOrders = orders.filter(o => {
         const d = new Date(o.createdAt?.toDate?.() || o.createdAt);
         return d >= firstDayOfMonth;
       });
 
+      const monthExpensesData = expenses.filter(e => {
+        const d = new Date(e.date);
+        return d >= firstDayOfMonth;
+      });
+
       const todaySales = todayOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const todayDue = todayOrders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+      const todayExpenses = todayExpensesData.reduce((sum, e) => sum + (e.amount || 0), 0);
+
       const monthlySales = monthOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const monthlyDue = monthOrders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+      const monthlyExpenses = monthExpensesData.reduce((sum, e) => sum + (e.amount || 0), 0);
 
       setData({
         sales, purchase, customers: customersSnap.size, products: productsSnap.size,
         paid: totalPaid, due: totalDue, todaySales, todayDue,
-        monthlySales, monthlyDue
+        monthlySales, monthlyDue, totalExpenses, todayExpenses, monthlyExpenses
       });
     } catch (error) {
       console.error(error);
@@ -276,25 +294,25 @@ export default function UnifiedDashboard() {
     <div className="space-y-0 sm:space-y-10 max-w-[1600px] mx-auto pb-4 sm:pb-20 px-0 sm:px-0 bg-[#FDFCFB]">
       {/* Header Section */}
       <header className="flex flex-row items-center justify-between gap-2 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-0 z-50">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5 sm:gap-3 text-[7px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
-            <div className="w-3 sm:w-6 h-[1.5px] bg-brand-primary"></div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 sm:gap-3 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
+            <div className="w-4 sm:w-6 h-[1.5px] bg-brand-primary"></div>
             Management Terminal
           </div>
-          <h1 className="text-sm sm:text-4xl font-serif font-black text-slate-900 tracking-tighter leading-none">SmartShop</h1>
+          <h1 className="text-xl sm:text-4xl font-serif font-black text-slate-900 tracking-tighter leading-none">SmartShop</h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Real-Time Intelligence & Operations</p>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
            <button 
              onClick={() => navigate('/settings')}
-             className="flex items-center justify-center p-1.5 sm:p-3 bg-white border border-rose-100 rounded-lg sm:rounded-2xl text-rose-600 hover:bg-rose-50 transition-all shadow-sm"
+             className="flex items-center justify-center p-2.5 sm:p-3 bg-white border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 hover:bg-rose-50 transition-all shadow-sm"
              title="System Restart"
            >
-             <RotateCcw size={14} className="sm:w-[20px] sm:h-[20px]" />
+             <RotateCcw size={16} className="sm:w-[20px] sm:h-[20px]" />
            </button>
-           <div className="px-1.5 sm:px-5 py-1 sm:py-3 bg-white border border-slate-100 rounded-lg sm:rounded-3xl shadow-sm flex items-center gap-1 sm:gap-3">
-              <div className="w-1 h-1 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-ping"></div>
-              <span className="text-[6px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">Live</span>
+           <div className="px-3 sm:px-5 py-2 sm:py-3 bg-white border border-slate-100 rounded-xl sm:rounded-3xl shadow-sm flex items-center gap-2 sm:gap-3">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-ping"></div>
+              <span className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">Live</span>
            </div>
         </div>
       </header>
@@ -320,22 +338,22 @@ export default function UnifiedDashboard() {
           
           {/* New Order Form (Directly on Page) */}
           <section className="bg-white sm:premium-card overflow-hidden">
-            <div className="p-4 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-row items-center justify-between gap-2">
-              <div className="flex items-center gap-2 sm:gap-4">
-                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-slate-900 text-white rounded-lg sm:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
-                  <ShoppingCart size={14} className="sm:w-[18px] sm:h-[18px]" />
+            <div className="p-4 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200 shrink-0">
+                  <ShoppingCart size={18} className="sm:w-[18px] sm:h-[18px]" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-xl font-bold text-slate-900 tracking-tight">{t('invoiceNode')}</h2>
-                  <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('marketEmission')}</p>
+                  <h2 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight">{t('invoiceNode')}</h2>
+                  <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('marketEmission')}</p>
                 </div>
               </div>
-              <div className="flex gap-1 sm:gap-2">
-                 <button onClick={() => setIsCustomerModalOpen(true)} className="flex items-center justify-center gap-1.5 px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
-                    <Users size={10} className="sm:w-[12px] sm:h-[12px]" /> {t('addCustomer').split(' ')[0]}
+              <div className="flex gap-2">
+                 <button onClick={() => setIsCustomerModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                    <Users size={12} /> {t('addCustomer').split(' ')[0]}
                  </button>
-                 <button onClick={() => setIsQuickProductModalOpen(true)} className="flex items-center justify-center gap-1.5 px-2 sm:px-4 py-1.5 rounded-lg sm:rounded-xl bg-white border border-slate-100 text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
-                    <Package size={10} className="sm:w-[12px] sm:h-[12px]" /> + {t('product')}
+                 <button onClick={() => setIsQuickProductModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                    <Package size={12} /> + {t('product')}
                  </button>
               </div>
             </div>
@@ -464,7 +482,7 @@ export default function UnifiedDashboard() {
           <section className="bg-white sm:premium-card p-4 sm:p-8 border-b border-slate-100 sm:border-none">
             <div className="flex items-center justify-between mb-4 sm:mb-8">
               <div>
-                <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">{t('intelligence')}</h3>
+                <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">{t('financialReports')}</h3>
                 <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('aggregateReports')}</p>
               </div>
               <button 
@@ -478,6 +496,25 @@ export default function UnifiedDashboard() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+              <div onClick={() => navigate('/costing')} className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-50 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
+                 <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                       <TrendingDown size={14} />
+                    </div>
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-700">{t('costing')}</span>
+                 </div>
+                 <ChevronRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+              </div>
+              <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
+                 <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">Today</span>
+                    <span className="text-xs font-black text-slate-900 tabular-nums">{formatCurrency(data?.todayExpenses || 0)}</span>
+                 </div>
+                 <div className="flex flex-col text-right">
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">Month</span>
+                    <span className="text-xs font-black text-slate-900 tabular-nums">{formatCurrency(data?.monthlyExpenses || 0)}</span>
+                 </div>
+              </div>
               <div className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-50 transition-all hover:bg-white hover:border-slate-100 cursor-pointer group">
                  <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">

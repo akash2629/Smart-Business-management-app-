@@ -887,34 +887,28 @@ export default function DueManagement() {
             </tbody>
           </table>
 
-          {/* Mobile Detailed Flow (No Cards) */}
-          <div className="md:hidden divide-y divide-slate-100 bg-white">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden p-4 space-y-4 bg-slate-50/30">
             {loading ? (
               <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredDues.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Dues Found</div>
             ) : filteredDues.map((record) => (
-              <div key={record.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
+              <div key={record.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 font-black text-lg border border-amber-100 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 font-black text-lg border border-amber-100 shadow-sm shadow-amber-100/50">
                       {record.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{record.name}</p>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">Outstanding Liability</p>
+                      <p className="font-black text-slate-900 text-[15px] tracking-tight truncate max-w-[150px]">{record.name}</p>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">Outstanding</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button 
-                      onClick={() => viewCustomerXlsxPreview(record)}
-                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-emerald-500 transition-colors border border-slate-100"
-                    >
-                      <Search size={16} />
-                    </button>
+                  <div className="flex items-center gap-2">
                     <button 
                       onClick={() => fetchHistory(record)}
-                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
+                      className="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
                     >
                       <History size={16} />
                     </button>
@@ -924,7 +918,7 @@ export default function DueManagement() {
                         setPaymentAmount(record.remaining_balance);
                         setIsModalOpen(true);
                       }}
-                      className="p-2 sm:p-2.5 bg-slate-900 rounded-xl text-white shadow-lg active:scale-95 transition-all"
+                      className="w-9 h-9 flex items-center justify-center bg-slate-900 rounded-xl text-white shadow-lg shadow-slate-200 active:scale-95 transition-all"
                     >
                       <Wallet size={16} />
                     </button>
@@ -932,23 +926,39 @@ export default function DueManagement() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                  <div>
-                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Recovered Rate</label>
-                    <p className="font-bold text-slate-900 text-xs tabular-nums">{Math.round((record.total_paid / record.total_amount) * 100)}%</p>
+                  <div className="space-y-1">
+                    <label className="block text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none">Recovered</label>
+                    <p className="font-bold text-emerald-600 text-[11px] tabular-nums">{Math.round((record.total_paid / record.total_amount) * 100)}%</p>
                   </div>
-                  <div className="text-right">
-                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Residual Balance</label>
-                    <p className="font-black text-rose-600 text-sm tabular-nums">{formatCurrency(record.remaining_balance)}</p>
+                  <div className="text-right space-y-1">
+                    <label className="block text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none">Balance Due</label>
+                    <p className="font-black text-rose-600 text-[15px] tabular-nums leading-none">{formatCurrency(record.remaining_balance)}</p>
+                  </div>
+                  <div className="col-span-2 space-y-1.5 pt-1 border-t border-slate-100">
+                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(record.total_paid / record.total_amount) * 100}%` }}
+                        transition={{ duration: 1, ease: "circOut" }}
+                        className="bg-emerald-500 h-full shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden border border-slate-50 shadow-inner">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(record.total_paid / record.total_amount) * 100}%` }}
-                    transition={{ duration: 1 }}
-                    className="bg-emerald-500 h-full" 
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    onClick={() => viewCustomerXlsxPreview(record)}
+                    className="flex items-center justify-center gap-2 py-2.5 bg-white border border-slate-100 rounded-xl text-[9px] font-black text-slate-500 uppercase tracking-widest shadow-sm shadow-slate-100/50"
+                  >
+                    <Search size={12} /> Excel Preview
+                  </button>
+                  <button 
+                    onClick={() => exportCustomerDetailedPDF(record)}
+                    className="flex items-center justify-center gap-2 py-2.5 bg-white border border-slate-100 rounded-xl text-[9px] font-black text-rose-400 uppercase tracking-widest shadow-sm shadow-slate-100/50"
+                  >
+                    <FileText size={12} /> Detailed Audit
+                  </button>
                 </div>
               </div>
             ))}

@@ -38,6 +38,7 @@ import PurchaseList from './components/PurchaseList';
 import ProductList from './components/ProductList';
 import DueManagement from './components/DueManagement';
 import TransactionHistory from './components/TransactionHistory';
+import CostingDashboard from './components/CostingDashboard';
 import UnifiedDashboard from './components/UnifiedDashboard';
 import Settings from './components/Settings';
 import NotificationCenter from './components/NotificationCenter';
@@ -77,6 +78,8 @@ function NavItem({ to, icon: Icon, label, active, onClick }: NavItemProps) {
 
 function Login() {
   const { t } = useLanguage();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-main p-4 text-text-main overflow-hidden relative transition-colors duration-500">
       {/* Decorative elements */}
@@ -101,24 +104,44 @@ function Login() {
         
         <div className="space-y-4">
           <button 
+            disabled={isLoggingIn}
             onClick={async () => {
+              if (isLoggingIn) return;
+              setIsLoggingIn(true);
               try {
                 await signInWithGoogle();
               } catch (error: any) {
                 console.error('Login Error:', error);
+                
+                // Handle cancelled or blocked popup gracefully
                 if (error.code === 'auth/popup-blocked') {
                   toast.error('Sign-in popup was blocked by your browser. Please allow popups for this site.');
                 } else if (error.code === 'auth/unauthorized-domain') {
                   toast.error('Domain not authorized. Please add your Netlify domain to the Firebase Console "Authorized Domains" list.');
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                  // This happens if a second request starts before the first one finishes.
+                  // Since we are now disabling the button, this shouldn't happen often,
+                  // but we should still handle it if it does.
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                  toast.info('Sign-in was cancelled.');
                 } else {
                   toast.error('Connection failed: ' + (error.message || 'Unknown error'));
                 }
+              } finally {
+                setIsLoggingIn(false);
               }
             }}
-            className="w-full flex items-center justify-center gap-4 bg-brand-primary py-4 px-6 rounded-2xl font-bold text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-brand-primary/20 group"
+            className={cn(
+              "w-full flex items-center justify-center gap-4 bg-brand-primary py-4 px-6 rounded-2xl font-bold text-white hover:opacity-90 transition-all active:scale-[0.98] shadow-xl shadow-brand-primary/20 group",
+              isLoggingIn && "opacity-70 cursor-not-allowed"
+            )}
           >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6 shrink-0 bg-white p-0.5 rounded-full" />
-            <span>Continue with Google</span>
+            {isLoggingIn ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6 shrink-0 bg-white p-0.5 rounded-full" />
+            )}
+            <span>{isLoggingIn ? 'Connecting...' : 'Continue with Google'}</span>
           </button>
           <p className="text-[11px] text-slate-400 font-medium px-4">
             By signing in, you agree to secure your shop data with enterprise-grade cloud encryption.
@@ -150,6 +173,17 @@ function Navigation() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
+
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: "Command Center" },
     { to: "/orders", icon: ShoppingCart, label: t('orders') },
@@ -157,9 +191,9 @@ function Navigation() {
     { to: "/customers", icon: Users, label: t('customers') },
     { to: "/suppliers", icon: Truck, label: t('suppliers') },
     { to: "/products", icon: Package, label: t('products') },
+    { to: "/costing", icon: CreditCard, label: t('costing') },
     { to: "/dues", icon: CreditCard, label: t('dues') },
     { to: "/history", icon: Clock, label: t('dailyRecord') },
-    { to: "/translator", icon: Languages, label: t('intelligence') },
     { to: "/settings", icon: SettingsIcon, label: t('settings') },
   ];
 
@@ -251,32 +285,41 @@ function Navigation() {
       {/* Mobile Menu Dropdown */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, scaleY: 0 }}
-            animate={{ opacity: 1, scaleY: 1 }}
-            exit={{ opacity: 0, scaleY: 0 }}
-            className="lg:hidden mt-4 bg-card-bg rounded-2xl border border-card-border shadow-2xl overflow-hidden origin-top"
-          >
-            <div className="p-4 grid grid-cols-1 gap-2">
-              {navItems.map((item) => (
-                <NavItem 
-                  key={item.to}
-                  to={item.to}
-                  icon={item.icon}
-                  label={item.label}
-                  active={location.pathname === item.to}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                />
-              ))}
-            </div>
-            <div className="p-4 bg-header-bg border-t border-card-border flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                 <div className="w-3 h-3 bg-brand-accent rounded-full animate-pulse" />
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Security Active</span>
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scaleY: 0 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              exit={{ opacity: 0, scaleY: 0 }}
+              className="lg:hidden mt-4 bg-card-bg rounded-2xl border border-card-border shadow-2xl overflow-y-auto origin-top max-h-[80vh] relative z-50"
+            >
+              <div className="p-4 grid grid-cols-1 gap-2">
+                {navItems.map((item) => (
+                  <NavItem 
+                    key={item.to}
+                    to={item.to}
+                    icon={item.icon}
+                    label={item.label}
+                    active={location.pathname === item.to}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  />
+                ))}
               </div>
-              <p className="text-[10px] font-black text-slate-900">v1.1.0 CE</p>
-            </div>
-          </motion.div>
+              <div className="p-4 bg-header-bg border-t border-card-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className="w-3 h-3 bg-brand-accent rounded-full animate-pulse" />
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Security Active</span>
+                </div>
+                <p className="text-[10px] font-black text-slate-900">v1.1.0 CE</p>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </nav>
@@ -334,9 +377,9 @@ function AppContent() {
               <Route path="/customers" element={<PageTransition><CustomerList /></PageTransition>} />
               <Route path="/suppliers" element={<PageTransition><SupplierList /></PageTransition>} />
               <Route path="/products" element={<PageTransition><ProductList /></PageTransition>} />
+              <Route path="/costing" element={<PageTransition><CostingDashboard /></PageTransition>} />
               <Route path="/dues" element={<PageTransition><DueManagement /></PageTransition>} />
               <Route path="/history" element={<PageTransition><TransactionHistory /></PageTransition>} />
-              <Route path="/translator" element={<PageTransition><Translator /></PageTransition>} />
               <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -88,6 +88,9 @@ export interface DashboardData {
   todayDue: number;
   monthlySales: number;
   monthlyDue: number;
+  totalExpenses: number;
+  todayExpenses: number;
+  monthlyExpenses: number;
 }
 
 export interface DueRecord {
@@ -96,4 +99,13 @@ export interface DueRecord {
   total_amount: number;
   total_paid: number;
   remaining_balance: number;
+}
+
+export interface Expense {
+  id?: string;
+  category: string;
+  amount: number;
+  description: string;
+  date: string;
+  ownerId?: string;
 }

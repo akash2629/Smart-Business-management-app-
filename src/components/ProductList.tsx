@@ -423,86 +423,86 @@ export default function ProductList() {
             </tbody>
           </table>
 
-          {/* Mobile Detailed Flow (No Cards) */}
-          <div className="md:hidden divide-y divide-slate-100 bg-white">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden p-4 space-y-4 bg-slate-50/30">
             {loading ? (
               <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">Loading...</div>
             ) : filteredProducts.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">No Items Found</div>
             ) : filteredProducts.map((product) => (
-              <div key={product.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
+              <div key={product.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div 
                       onClick={() => product.images && product.images.length > 0 && setPreviewImages({ images: product.images, currentIndex: 0 })}
-                      onMouseEnter={() => product.images && product.images.length > 0 && setHoveredImage(product.images[0])}
-                      onMouseLeave={() => setHoveredImage(null)}
-                      className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl shadow-slate-200 cursor-pointer overflow-hidden"
+                      className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200 cursor-pointer overflow-hidden border-2 border-white"
                     >
                       {product.images && product.images.length > 0 ? (
-                        <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded-2xl transition-transform hover:scale-110" referrerPolicy="no-referrer" />
+                        <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded-xl transition-transform hover:scale-110" referrerPolicy="no-referrer" />
                       ) : (
                         <Package size={24} />
                       )}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{product.name}</p>
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mt-1">{product.code}</p>
+                      <p className="font-black text-slate-900 text-[15px] tracking-tight truncate max-w-[150px]">{product.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Barcode size={10} className="text-slate-300" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{product.code}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <button 
                       onClick={() => {
                         setEditingProduct(product);
                         setFormData(product);
                         setIsModalOpen(true);
                       }}
-                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
+                      className="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => handleDelete(product.id!)}
-                      className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-400 border border-rose-100"
+                      className="w-9 h-9 flex items-center justify-center bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 border border-rose-100"
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 mt-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                  <div className="flex flex-col">
-                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Buy Price</label>
-                    <span className="font-bold text-slate-900 text-xs tabular-nums">{formatCurrency(product.buyPrice || 0)}</span>
+                <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                  <div className="space-y-1">
+                    <label className="block text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none">Buy Price</label>
+                    <p className="font-black text-slate-900 text-xs tabular-nums">{formatCurrency(product.buyPrice || 0)}</p>
                   </div>
-                  <div className="flex flex-col">
-                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Sale Price</label>
-                    <span className="font-bold text-slate-900 text-xs tabular-nums">{formatCurrency(product.salePrice || 0)}</span>
+                  <div className="space-y-1">
+                    <label className="block text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none">Sale Price</label>
+                    <p className="font-black text-brand-primary text-xs tabular-nums">{formatCurrency(product.salePrice || 0)}</p>
                   </div>
-                  <div className="flex flex-col mt-2">
-                    <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">In Stock</label>
-                    <div className="flex items-center gap-2">
-                       <div className={cn(
-                        "w-1.5 h-1.5 rounded-full shadow-sm",
-                        product.stock > (product.stockAlert || 10) ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
-                      )} />
-                      <span className={cn(
-                        "font-black text-xs tabular-nums",
-                        product.stock > (product.stockAlert || 10) ? "text-emerald-600" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
-                      )}>{product.stock} Units</span>
+                  <div className="space-y-1 pt-1 border-t border-slate-100 col-span-2 flex items-center justify-between">
+                    <div>
+                      <label className="block text-[7px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">In Stock</label>
+                      <div className="flex items-center gap-2">
+                         <div className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          product.stock > (product.stockAlert || 10) ? "bg-emerald-500" : product.stock > 0 ? "bg-amber-500" : "bg-rose-500"
+                        )} />
+                        <span className={cn(
+                          "font-black text-xs tabular-nums",
+                          product.stock > (product.stockAlert || 10) ? "text-emerald-600" : product.stock > 0 ? "text-amber-600" : "text-rose-600"
+                        )}>{product.stock} Units</span>
+                      </div>
                     </div>
-                  </div>
-                  {product.images && product.images.length > 0 && (
-                    <div className="flex flex-col mt-2">
-                      <label className="block text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">View Info</label>
+                    {product.images && product.images.length > 0 && (
                       <button 
                         onClick={() => setPreviewImages({ images: product.images!, currentIndex: 0 })}
-                        className="text-brand-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-slate-100 text-[8px] font-black text-slate-500 uppercase tracking-widest shadow-sm shadow-slate-100"
                       >
-                        <ImageIcon size={10} /> View Photos
+                        <ImageIcon size={10} /> Photos
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

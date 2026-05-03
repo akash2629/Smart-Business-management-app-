@@ -80,22 +80,26 @@ export default function Dashboard() {
       const ordersQ = collection(db, 'users', user.uid, 'orders');
       const customersQ = collection(db, 'users', user.uid, 'customers');
       const productsQ = collection(db, 'users', user.uid, 'products');
+      const expensesQ = collection(db, 'users', user.uid, 'expenses');
 
-      const [ordersSnap, customersSnap, productsSnap] = await Promise.all([
+      const [ordersSnap, customersSnap, productsSnap, expensesSnap] = await Promise.all([
         getDocs(ordersQ),
         getDocs(customersQ),
-        getDocs(productsQ)
+        getDocs(productsQ),
+        getDocs(expensesQ)
       ]).catch(err => {
         console.error('Firestore Error:', err);
         throw new Error('Failed to reach database. Check your connection.');
       });
 
       const orders = ordersSnap.docs.map(doc => doc.data());
+      const expenses = expensesSnap.docs.map(doc => doc.data());
       
       const sales = orders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const purchase = orders.filter(o => o.type === 'Purchase').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const totalPaid = orders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
       const totalDue = orders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
       // Today's metrics
       const today = new Date();
@@ -107,8 +111,15 @@ export default function Dashboard() {
         return orderDate.getTime() === today.getTime();
       });
 
+      const todayExpensesData = expenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        expenseDate.setHours(0, 0, 0, 0);
+        return expenseDate.getTime() === today.getTime();
+      });
+
       const todaySales = todayOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const todayDue = todayOrders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+      const todayExpenses = todayExpensesData.reduce((sum, e) => sum + (e.amount || 0), 0);
 
       // Monthly metrics
       const currentMonth = today.getMonth();
@@ -119,8 +130,14 @@ export default function Dashboard() {
         return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
       });
 
+      const monthlyExpensesData = expenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+      });
+
       const monthlySales = monthlyOrders.filter(o => o.type === 'Invoice').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
       const monthlyDue = monthlyOrders.reduce((sum, o) => sum + ((o.totalAmount || 0) - (o.paidAmount || 0)), 0);
+      const monthlyExpenses = monthlyExpensesData.reduce((sum, e) => sum + (e.amount || 0), 0);
 
       setData({
         sales,
@@ -132,7 +149,10 @@ export default function Dashboard() {
         todaySales,
         todayDue,
         monthlySales,
-        monthlyDue
+        monthlyDue,
+        totalExpenses,
+        todayExpenses,
+        monthlyExpenses
       });
     } catch (error) {
       console.error(error);
@@ -237,6 +257,24 @@ export default function Dashboard() {
           value={formatCurrency(data.purchase)} 
           icon={TrendingDown} 
           color="bg-amber-500"
+        />
+        <StatCard 
+          title={t('dailyCosting')}
+          value={formatCurrency(data.todayExpenses)} 
+          icon={TrendingDown} 
+          color="bg-rose-700"
+        />
+        <StatCard 
+          title={t('monthlyCosting')}
+          value={formatCurrency(data.monthlyExpenses)} 
+          icon={TrendingDown} 
+          color="bg-rose-800"
+        />
+        <StatCard 
+          title={t('totalExpenses')}
+          value={formatCurrency(data.totalExpenses)} 
+          icon={TrendingDown} 
+          color="bg-rose-900"
         />
         <StatCard 
           title={t('totalCustomers')}

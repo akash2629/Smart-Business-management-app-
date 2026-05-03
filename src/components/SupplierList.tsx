@@ -233,21 +233,21 @@ export default function SupplierList() {
             </tbody>
           </table>
 
-          {/* Mobile View */}
-          <div className="md:hidden divide-y divide-slate-100 bg-white">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden p-4 space-y-4 bg-slate-50/30">
             {loading ? (
               <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">{t('loading')}</div>
             ) : filteredSuppliers.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">{t('noSuppliersFound')}</div>
             ) : filteredSuppliers.map((supplier) => (
-              <div key={supplier.id} className="p-5 space-y-4">
+              <div key={supplier.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-black shadow-xl shadow-slate-200">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-black shadow-lg shadow-slate-200">
                       {supplier.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[14px] tracking-tight">{supplier.name}</p>
+                      <p className="font-black text-slate-900 text-[15px] tracking-tight">{supplier.name}</p>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">{supplier.shopName}</p>
                     </div>
                   </div>
@@ -258,24 +258,33 @@ export default function SupplierList() {
                         setFormData(supplier);
                         setIsModalOpen(true);
                       }}
-                      className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
+                      className="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
                     >
                       <Edit2 size={16} />
                     </button>
-                    <button onClick={() => handleDelete(supplier.id!)} className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100">
+                    <button 
+                      onClick={() => handleDelete(supplier.id!)} 
+                      className="w-9 h-9 flex items-center justify-center bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-2">
-                  <div className="flex items-start gap-2.5 p-3 px-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                    <Phone size={14} className="text-slate-300 mt-0.5" />
-                    <p className="text-[11px] font-bold text-slate-500 leading-snug tracking-tight">{supplier.phone}</p>
+                <div className="grid grid-cols-1 gap-2 border-t border-slate-50 pt-4">
+                  <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+                    <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-slate-300 border border-slate-100">
+                      <Phone size={12} />
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-600 tracking-tight">{supplier.phone}</p>
                   </div>
-                  <div className="flex items-start gap-2.5 p-3 px-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                    <MapPin size={14} className="text-slate-300 mt-0.5" />
-                    <p className="text-[11px] font-bold text-slate-500 leading-snug tracking-tight">{supplier.shopAddress}</p>
-                  </div>
+                  {supplier.shopAddress && (
+                    <div className="flex items-start gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+                      <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-slate-300 border border-slate-100 shrink-0">
+                        <MapPin size={12} />
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-500 leading-snug tracking-tight">{supplier.shopAddress}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

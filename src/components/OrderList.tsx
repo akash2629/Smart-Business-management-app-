@@ -556,28 +556,36 @@ export default function OrderList() {
             </tbody>
           </table>
 
-          {/* Mobile Detailed Flow (No Cards) */}
-          <div className="md:hidden divide-y divide-slate-100 bg-white">
+          {/* Mobile Card Layout */}
+          <div className="md:hidden p-4 space-y-4 bg-slate-50/30">
             {loading ? (
               <div className="p-8 text-center text-slate-300 font-bold uppercase tracking-widest animate-pulse text-[10px]">{t('loading')}</div>
             ) : filteredOrders.length === 0 ? (
               <div className="p-12 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px]">{t('noBillsFound')}</div>
             ) : filteredOrders.map((order) => (
-              <div key={order.id} className="p-5 space-y-4 hover:bg-slate-50/30 transition-colors">
+              <div key={order.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-xl shadow-slate-200">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-slate-200">
                       {(order.type === 'Purchase' ? order.supplierName : order.customerName)?.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-[12px] tracking-tight">{order.type === 'Purchase' ? order.supplierName : order.customerName}</p>
-                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none">#{order.id?.slice(-6)} • {order.type === 'Quotation' ? 'Quote' : order.type === 'Purchase' ? 'Purchase' : 'Invoice'}</span>
+                      <p className="font-black text-slate-900 text-[14px] tracking-tight truncate max-w-[150px]">
+                        {order.type === 'Purchase' ? order.supplierName : order.customerName}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">#{order.id?.slice(-6)}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-200" />
+                        <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest">
+                          {order.type === 'Quotation' ? 'Quote' : order.type === 'Purchase' ? 'Purchase' : 'Invoice'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[12px] font-black text-slate-900 tabular-nums">{formatCurrency(order.totalAmount)}</p>
+                    <p className="text-[14px] font-black text-slate-900 tabular-nums leading-none mb-1">{formatCurrency(order.totalAmount)}</p>
                     <span className={cn(
-                      "inline-block px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border mt-1",
+                      "inline-block px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border",
                       order.status === 'Paid' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                     )}>
                       {order.status}
@@ -585,34 +593,29 @@ export default function OrderList() {
                   </div>
                 </div>
 
-                {order.images && order.images.length > 0 && (
-                  <div className="flex gap-2 py-2 overflow-x-auto invisible-scrollbar">
-                    {order.images.map((img: string, i: number) => (
-                      <div 
-                        key={i} 
-                        className="w-12 h-12 rounded-xl overflow-hidden border border-slate-100 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => setPreviewImage(img)}
-                      >
-                        <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                    ))}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-slate-300" />
+                    <span className="text-[10px] font-bold text-slate-500">{formatDate(order.createdAt!)}</span>
                   </div>
-                )}
-                
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Calendar size={12} className="text-slate-300" />
-                    <span className="text-[9px] font-bold text-slate-400">{formatDate(order.createdAt!)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => exportToPDF(order)} className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100">
-                      <Printer size={14} />
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => exportToPDF(order)} 
+                      className="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
+                    >
+                      <Printer size={16} />
                     </button>
-                    <button onClick={() => handleEdit(order)} className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100">
-                      <Edit2 size={14} />
+                    <button 
+                      onClick={() => handleEdit(order)} 
+                      className="w-9 h-9 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-colors border border-slate-100"
+                    >
+                      <Edit2 size={16} />
                     </button>
-                    <button onClick={() => handleDelete(order.id!)} className="p-2 sm:p-2.5 bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100">
-                      <Trash2 size={14} />
+                    <button 
+                      onClick={() => handleDelete(order.id!)} 
+                      className="w-9 h-9 flex items-center justify-center bg-rose-50 rounded-xl text-rose-300 hover:text-rose-600 transition-colors border border-rose-100"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>

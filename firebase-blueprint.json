@@ -126,6 +126,19 @@
         "ownerId": { "type": "string" }
       },
       "required": ["supplierId", "totalAmount", "paidAmount", "status", "ownerId"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Daily or monthly shop expenses like rent, bills, or salary",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["category", "amount", "date", "ownerId"]
     }
   },
   "firestore": {
@@ -168,6 +181,10 @@
     "/users/{userId}/payments/{paymentId}": {
       "schema": "Payment",
       "description": "Main payment collection"
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Main expense collection"
     }
   }
 }
