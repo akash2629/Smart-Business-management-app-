@@ -160,7 +160,7 @@ export default function CostingDashboard() {
   return (
     <div className="space-y-4 sm:space-y-8 animate-in fade-in duration-500 pb-20 sm:pb-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 bg-white sm:bg-white/50 backdrop-blur-sm p-5 sm:p-8 rounded-[2rem] sm:rounded-[3rem] border border-slate-100 sm:border-white shadow-sm sticky top-0 sm:relative z-40">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 bg-white sm:bg-white/50 backdrop-blur-sm p-5 sm:p-8 rounded-[2rem] sm:rounded-[3rem] border border-slate-100 sm:border-white shadow-sm sticky top-[60px] sm:top-[80px] z-40 transition-all duration-300">
         <div className="space-y-2 sm:space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-[9px] sm:text-xs font-black uppercase tracking-widest border border-rose-100">
             <TrendingDown size={10} />

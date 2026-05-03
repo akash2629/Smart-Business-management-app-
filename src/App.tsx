@@ -198,9 +198,9 @@ function Navigation() {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-card-bg/80 backdrop-blur-xl border-b border-card-border px-3 sm:px-6 py-2 sm:py-4 transition-colors duration-500">
+    <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-card-bg/80 backdrop-blur-xl border-b border-card-border px-3 sm:px-6 py-2 sm:py-4 transition-colors duration-500">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3 sm:gap-10">
+        <div className="flex items-center gap-3 sm:gap-10 overflow-hidden">
           <Link to="/" className="flex items-center gap-2 sm:gap-3 text-brand-primary font-serif font-black text-lg sm:text-2xl tracking-tighter shrink-0 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-primary text-white rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-brand-primary/20">
               <Store size={18} className="sm:w-[22px] sm:h-[22px]" />
@@ -209,7 +209,7 @@ function Navigation() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-1 overflow-x-auto invisible-scrollbar max-w-full pb-1">
             {navItems.map((item) => (
               <NavItem 
                 key={item.to}
@@ -364,7 +364,7 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-main font-sans text-text-main transition-colors duration-500">
+    <div className="flex flex-col min-h-screen bg-bg-main font-sans text-text-main transition-colors duration-500 pt-[60px] sm:pt-[80px]">
       <Navigation />
       
       <main className="flex-1 p-0 sm:p-6 lg:p-12 overflow-x-hidden">

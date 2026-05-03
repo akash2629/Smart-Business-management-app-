@@ -293,7 +293,7 @@ export default function UnifiedDashboard() {
   return (
     <div className="space-y-0 sm:space-y-10 max-w-[1600px] mx-auto pb-4 sm:pb-20 px-0 sm:px-0 bg-[#FDFCFB]">
       {/* Header Section */}
-      <header className="flex flex-row items-center justify-between gap-2 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-0 z-50">
+      <header className="flex flex-row items-center justify-between gap-2 sm:gap-6 p-4 sm:p-0 bg-white sm:bg-transparent border-b border-slate-100 sm:border-none sticky top-[60px] sm:top-[80px] z-40 transition-all duration-300">
         <div className="space-y-1">
           <div className="flex items-center gap-2 sm:gap-3 text-[8px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
             <div className="w-4 sm:w-6 h-[1.5px] bg-brand-primary"></div>
